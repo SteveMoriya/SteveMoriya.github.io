@@ -1,6 +1,6 @@
 ﻿
 # don
-google.com, pub-7891143639334029, DIRECT, f08c47fec0942fa0
+#google.com, pub-7891143639334029, DIRECT, f08c47fec0942fa0
 
 # steve
-#google.com, pub-5885618075758742, DIRECT, f08c47fec0942fa0
+google.com, pub-5885618075758742, DIRECT, f08c47fec0942fa0
