@@ -1,5 +1,5 @@
 #other
-#google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
 
 # don
 #google.com, pub-7891143639334029, DIRECT, f08c47fec0942fa0
