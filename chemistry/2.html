@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>香豆素-3-羧酸荧光发光交互式演示</title>
+<style>
+:root {
+  --bg: #080812;
+  --surface: rgba(22,22,42,0.95);
+  --border: rgba(120,120,180,0.15);
+  --text: #d8d8f0;
+  --text-dim: #7878a0;
+  --accent-uv: #9966ff;
+  --accent-blue: #33aaff;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  height: 100vh; width: 100vw;
+  overflow: hidden;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+#header {
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10,10,24,0.6);
+  z-index: 10;
+}
+#header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #cc99ff, #66bbff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+#header .phase-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 3px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+#header .phase-label.uv  { color:#cc99ff; border-color:#9966ff; }
+#header .phase-label.ex  { color:#ffaa66; border-color:#ff8844; }
+#header .phase-label.em  { color:#44aaff; border-color:#3399ee; }
+
+#main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+#mol-view {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  cursor: grab;
+}
+#mol-view:active { cursor: grabbing; }
+
+#right-panel {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 10px;
+  border-left: 1px solid var(--border);
+  background: rgba(10,10,24,0.4);
+  overflow-y: auto;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.card h3 {
+  font-size: 12px;
+  color: var(--accent-blue);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+#energy-canvas {
+  width: 100%;
+  height: 220px;
+  display: block;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.2);
+}
+#atom-stats {
+  display: flex;
+  gap: 8px;
+}
+.stat-item {
+  flex: 1;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 6px;
+}
+.stat-item .count { font-size: 22px; font-weight: 700; }
+.stat-item .label { font-size: 10px; color: var(--text-dim); }
+.stat-c .count { color:#888; }
+.stat-h .count { color:#ddd; }
+.stat-o .count { color:#ff6666; }
+
+#step-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.5;
+  padding: 4px 0;
+}
+
+#footer {
+  flex-shrink: 0;
+  padding: 10px 20px 14px;
+  background: rgba(10,10,24,0.6);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+#progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#progress-bar {
+  flex:1;
+  height: 5px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+#progress-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #9966ff;
+  box-shadow: 0 0 10px rgba(153,102,255,0.5);
+  cursor: pointer;
+}
+#progress-time { font-size: 12px; color: var(--text-dim); min-width: 32px; text-align: right; }
+#controls { display: flex; gap: 8px; justify-content: center; }
+button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 18px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+button:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+button.primary { background: linear-gradient(135deg, rgba(153,102,255,0.15), rgba(68,170,255,0.15)); border-color: rgba(153,102,255,0.3); }
+button.playing { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+@media (max-width: 800px) {
+  #main { flex-direction: column; }
+  #mol-view { height: 45vh; }
+  #right-panel { width: 100%; flex-direction: row; flex-wrap: wrap; gap: 6px; padding: 6px; }
+  #right-panel .card { flex: 1; min-width: 180px; }
+  #energy-canvas { height: 160px; }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>香豆素-3-羧酸荧光发光交互式演示</h1>
+  <div class="phase-label" id="phase-label">基态 S₀</div>
+</div>
+
+<div id="main">
+  <div id="mol-view"></div>
+  <div id="right-panel">
+    <div class="card">
+      <h3>S₀ → S₁ 荧光能级图</h3>
+      <canvas id="energy-canvas"></canvas>
+    </div>
+    <div class="card">
+      <h3>分子原子组成</h3>
+      <div id="atom-stats">
+        <div class="stat-item stat-c"><div class="count">10</div><div class="label">碳 C</div></div>
+        <div class="stat-item stat-h"><div class="count">6</div><div class="label">氢 H</div></div>
+        <div class="stat-item stat-o"><div class="count">4</div><div class="label">氧 O</div></div>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-dim);line-height:1.4;">
+        荧光核心：吡喃酮共轭大π环 · C₁₀H₆O₄ · 190.15 g/mol
+      </div>
+    </div>
+    <div id="step-desc"></div>
+  </div>
+</div>
+
+<div id="footer">
+  <div id="progress-wrap">
+    <span style="font-size:11px;color:var(--text-dim);">UV激发</span>
+    <input type="range" id="progress-bar" min="0" max="100" value="0" step="1">
+    <span id="progress-time">0%</span>
+    <span style="font-size:11px;color:var(--text-dim);">荧光</span>
+  </div>
+  <div id="controls">
+    <button id="btn-play" class="primary" onclick="togglePlay()">自动播放</button>
+    <button id="btn-reset" onclick="resetAll()">重置</button>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.157.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ========== 分子数据 ==========
+const atoms = [
+  { id:'O1',  el:'O', pos:[ 0.60, 0.00,-0.42], core:1 },
+  { id:'C2',  el:'C', pos:[ 0.25, 0.00, 1.40], core:1 },
+  { id:'C3',  el:'C', pos:[ 1.55, 0.00, 0.50], core:1 },
+  { id:'C4',  el:'C', pos:[ 0.95, 0.00,-1.10], core:1 },
+  { id:'C5',  el:'C', pos:[-0.80, 0.00, 1.21], core:1 },
+  { id:'C10', el:'C', pos:[-0.80, 0.00,-0.80], core:1 },
+  { id:'O2',  el:'O', pos:[-0.15, 0.80, 2.30], core:1 },
+  { id:'C6',  el:'C', pos:[-2.10, 0.00, 1.80], core:0 },
+  { id:'C7',  el:'C', pos:[-3.30, 0.00, 1.05], core:0 },
+  { id:'C8',  el:'C', pos:[-3.30, 0.00,-0.60], core:0 },
+  { id:'C9',  el:'C', pos:[-2.10, 0.00,-1.55], core:0 },
+  { id:'H6',  el:'H', pos:[-2.25, 0.85, 2.65], core:0 },
+  { id:'H7',  el:'H', pos:[-4.25, 0.45, 1.55], core:0 },
+  { id:'H8',  el:'H', pos:[-4.30, 0.05,-1.00], core:0 },
+  { id:'H9',  el:'H', pos:[-2.20,-0.55,-2.50], core:0 },
+  { id:'H4',  el:'H', pos:[ 1.40, 0.90,-1.70], core:0 },
+  { id:'C_COOH', el:'C', pos:[ 2.65,-0.35, 1.20], core:0 },
+  { id:'O_COOH1',el:'O', pos:[ 2.40,-1.30, 1.65], core:0 },
+  { id:'O_COOH2',el:'O', pos:[ 3.80, 0.05, 1.30], core:0 },
+  { id:'H_COOH', el:'H', pos:[ 4.30, 0.60, 1.80], core:0 },
+];
+
+const amap = new Map(atoms.map(a => [a.id, a]));
+
+const bonds = [
+  ['C5','C6',1.5],['C6','C7',1.5],['C7','C8',1.5],['C8','C9',1.5],['C9','C10',1.5],['C10','C5',1.5],
+  ['C6','H6',1],['C7','H7',1],['C8','H8',1],['C9','H9',1],
+  ['O1','C2',1],['C2','C3',1],['C3','C4',2],['C4','C5',1],['C10','O1',1],['C2','O2',2],
+  ['C4','H4',1],
+  ['C3','C_COOH',1],['C_COOH','O_COOH1',2],['C_COOH','O_COOH2',1],['O_COOH2','H_COOH',1],
+];
+
+const R = { C:0.35, H:0.22, O:0.32 };
+const CORE_C = 0x3388cc, CORE_O = 0xff5555;
+const DIM = { C:0x555555, H:0x999999, O:0x884444 };
+
+// ========== Three.js 场景初始化 ==========
+const container = document.getElementById('mol-view');
+const scene = new THREE.Scene();
+
+// 背景星空（一次性创建，不逐帧更新）
+const sg = new THREE.BufferGeometry();
+const sp = new Float32Array(300*3);
+for(let i=0;i<300;i++){ sp[i*3]=(Math.random()-0.5)*50; sp[i*3+1]=(Math.random()-0.5)*50; sp[i*3+2]=(Math.random()-0.5)*50; }
+sg.setAttribute('position', new THREE.BufferAttribute(sp,3));
+scene.add(new THREE.Points(sg, new THREE.PointsMaterial({color:0x333360,size:0.04,transparent:true,opacity:0.5})));
+
+const ambient = new THREE.AmbientLight(0x333355, 2.0); scene.add(ambient);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.6); keyLight.position.set(5,8,5); scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x8888cc, 0.9); fillLight.position.set(-5,-2,-5); scene.add(fillLight);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+camera.position.set(3.5, 4.5, 8.5);
+
+const renderer = new THREE.WebGLRenderer({antialias:false, alpha:true});
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.NoToneMapping;
+container.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(-0.5, -0.2, 0.3);
+controls.enableDamping = true;
+controls.dampingFactor = 0.1;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.4;
+controls.minDistance = 3; controls.maxDistance = 15;
+controls.maxPolarAngle = Math.PI * 0.8;
+controls.update();
+
+// ========== 分子渲染（低面数）==========
+const mol = new THREE.Group(); scene.add(mol);
+
+// 预生成光晕纹理（只一次）
+function glowTex(c) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const ct = cv.getContext('2d');
+  const g = ct.createRadialGradient(32,32,0, 32,32,32);
+  g.addColorStop(0, c); g.addColorStop(0.4, 'rgba(0,0,0,0)');
+  ct.fillStyle = g; ct.fillRect(0,0,64,64);
+  return new THREE.CanvasTexture(cv);
+}
+const gTex = glowTex('rgba(153,102,255,0.7)');
+
+const aMeshes = [], gSprites = [];
+
+atoms.forEach(a => {
+  const c = a.core ? (a.el==='O'?CORE_O:CORE_C) : (DIM[a.el]||0x666666);
+  const r = R[a.el];
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(r, 16, 12),
+    new THREE.MeshStandardMaterial({color:c, roughness:0.4, metalness:0.08, emissive:c, emissiveIntensity:a.core?0.4:0.06})
+  );
+  mesh.position.set(a.pos[0], a.pos[1], a.pos[2]);
+  mesh.userData = { core:a.core, be:a.core?0.4:0.06 };
+  mol.add(mesh); aMeshes.push(mesh);
+
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map:gTex, blending:THREE.AdditiveBlending, transparent:true,
+    opacity:a.core?0.15:0.02, depthWrite:false, color:a.core?0x9966ff:0x333355
+  }));
+  sp.position.copy(mesh.position);
+  sp.scale.set(r*3, r*3, 1);
+  sp.userData = { core:a.core, bo:a.core?0.15:0.02, bs:r*3 };
+  mol.add(sp); gSprites.push(sp);
+});
+
+// 化学键（低面数圆柱）
+function cyl(a,b){
+  const p1=amap.get(a).pos, p2=amap.get(b).pos;
+  const mx=(p1[0]+p2[0])/2, my=(p1[1]+p2[1])/2, mz=(p1[2]+p2[2])/2;
+  const dx=p2[0]-p1[0], dy=p2[1]-p1[1], dz=p2[2]-p1[2];
+  const len=Math.sqrt(dx*dx+dy*dy+dz*dz);
+  const g=new THREE.CylinderGeometry(0.06,0.06,len,6);
+  const m=new THREE.Mesh(g, new THREE.MeshStandardMaterial({color:0x667788,roughness:0.5,emissive:0x111122,emissiveIntensity:0.08}));
+  m.position.set(mx,my,mz);
+  m.setRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), new THREE.Vector3(dx,dy,dz).normalize()));
+  return m;
+}
+bonds.forEach(([a,b,o]) => {
+  if(!amap.has(a)||!amap.has(b)) return;
+  if(o>=1.5){
+    // 双键偏移
+    const p1=amap.get(a).pos, p2=amap.get(b).pos;
+    const dir=new THREE.Vector3(p2[0]-p1[0],p2[1]-p1[1],p2[2]-p1[2]).normalize();
+    let perp=new THREE.Vector3().crossVectors(dir,new THREE.Vector3(0,1,0)).normalize();
+    if(perp.length()<0.05) perp=new THREE.Vector3().crossVectors(dir,new THREE.Vector3(1,0,0)).normalize();
+    perp.multiplyScalar(0.1);
+    const oa=[p1[0]+perp.x,p1[1]+perp.y,p1[2]+perp.z], ob=[p2[0]+perp.x,p2[1]+perp.y,p2[2]+perp.z];
+    const ia=[p1[0]-perp.x,p1[1]-perp.y,p1[2]-perp.z], ib=[p2[0]-perp.x,p2[1]-perp.y,p2[2]-perp.z];
+    amap.set(a+'_'+b+'_a',{pos:oa}); amap.set(b+'_'+a+'_a',{pos:ob});
+    amap.set(a+'_'+b+'_b',{pos:ia}); amap.set(b+'_'+a+'_b',{pos:ib});
+    mol.add(cyl(a+'_'+b+'_a', b+'_'+a+'_a'));
+    mol.add(cyl(a+'_'+b+'_b', b+'_'+a+'_b'));
+  } else {
+    mol.add(cyl(a,b));
+  }
+});
+
+// 共轭环高亮面
+const rc = new THREE.Vector3(-0.2,0,0.3);
+const ring = new THREE.Mesh(
+  new THREE.RingGeometry(1.4,1.65,48),
+  new THREE.MeshBasicMaterial({color:0x4488cc, side:THREE.DoubleSide, transparent:true, opacity:0.12, depthWrite:false})
+);
+ring.rotation.x = -Math.PI/2; ring.position.copy(rc);
+mol.add(ring);
+
+// UV光束
+const uvBeam = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.12,0.3,5,12,1,true),
+  new THREE.MeshBasicMaterial({color:0x9966ff, transparent:true, opacity:0, depthWrite:false, side:THREE.DoubleSide})
+);
+uvBeam.position.set(-0.5,4.2,0.3); mol.add(uvBeam);
+
+// 荧光发射粒子(减少数量)
+const ec = 80;
+const epArr = new Float32Array(ec*3);
+const ed = [];
+for(let i=0;i<ec;i++){
+  epArr[i*3]=rc.x; epArr[i*3+1]=rc.y; epArr[i*3+2]=rc.z;
+  ed.push({a:0,e:0,s:0,d:0,m:0,k:0});
+}
+const eg = new THREE.BufferGeometry();
+eg.setAttribute('position', new THREE.BufferAttribute(epArr,3));
+const epM = new THREE.PointsMaterial({color:0x44aaff, size:0.07, blending:THREE.AdditiveBlending, transparent:true, opacity:0, depthWrite:false});
+const ep = new THREE.Points(eg, epM);
+mol.add(ep);
+
+// ========== 能级图（仅变化时重绘）==========
+const eCanvas = document.getElementById('energy-canvas');
+const ectx = eCanvas.getContext('2d');
+let eDpr = 1;
+let lastDrawnT = -1;
+
+function setupEnergyCanvas() {
+  const W = eCanvas.clientWidth, H = eCanvas.clientHeight;
+  if (W===0||H===0) return false;
+  eDpr = Math.min(window.devicePixelRatio||1, 2);
+  const rw = Math.floor(W * eDpr), rh = Math.floor(H * eDpr);
+  if (eCanvas.width !== rw || eCanvas.height !== rh) {
+    eCanvas.width = rw; eCanvas.height = rh;
+    eCanvas.style.width = W+'px'; eCanvas.style.height = H+'px';
+  }
+  return true;
+}
+
+function drawEnergy(t) {
+  if (!setupEnergyCanvas()) return;
+  if (t === lastDrawnT) return;
+  lastDrawnT = t;
+
+  const ctx = ectx;
+  const W = eCanvas.width / eDpr, H = eCanvas.height / eDpr;
+  ctx.setTransform(eDpr,0,0,eDpr,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  const L=48, R=W-24, T=28, B=H-18;
+  const s0y=B-36, s1y=T+36;
+
+  // 背景网格
+  ctx.strokeStyle='rgba(255,255,255,0.03)'; ctx.lineWidth=0.5;
+  for(let y=T;y<=B;y+=26){ ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(R,y); ctx.stroke(); }
+
+  // 坐标轴
+  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(L,s0y+16); ctx.lineTo(L,T-8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(L,B-8); ctx.lineTo(R,B-8); ctx.stroke();
+
+  // S0线
+  ctx.fillStyle='#8888aa'; ctx.font='10px -apple-system, PingFang SC, sans-serif'; ctx.textAlign='right';
+  ctx.fillText('E ↑', L-4, T+14); ctx.textAlign='left';
+  ctx.strokeStyle='rgba(68,136,170,0.5)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(L+8,s0y); ctx.lineTo(R-8,s0y); ctx.stroke();
+  ctx.fillStyle='#4488aa'; ctx.font='bold 12px -apple-system, PingFang SC, sans-serif';
+  ctx.fillText('S₀ 基态', L+12, s0y-5);
+
+  // S1线
+  ctx.strokeStyle='rgba(255,136,68,0.5)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(L+8,s1y); ctx.lineTo(R-8,s1y); ctx.stroke();
+  ctx.fillStyle='#ff8844';
+  ctx.fillText('S₁ 激发态', L+12, s1y-5);
+
+  // 振动能级虚线
+  ctx.strokeStyle='rgba(68,136,170,0.2)'; ctx.lineWidth=0.6; ctx.setLineDash([3,5]);
+  for(let v=0;v<2;v++){
+    const y0=s0y-v*10, y1=s1y-v*10;
+    if(y0>s1y+18){ ctx.beginPath(); ctx.moveTo(L+36,y0); ctx.lineTo(R-8,y0); ctx.stroke(); }
+    if(y1>T+16){ ctx.beginPath(); ctx.moveTo(L+36,y1); ctx.lineTo(R-8,y1); ctx.stroke(); }
+  }
+  ctx.setLineDash([]);
+
+  const ax=L+70;
+  const gap=s0y-s1y;
+
+  // 吸收箭头 (UV激发)
+  if(t>0.001){
+    const ao=Math.min(1,t*3);
+    if(ao>0.005){
+      ctx.save(); ctx.globalAlpha=ao;
+      ctx.strokeStyle='#9966ff'; ctx.lineWidth=2.2;
+      ctx.beginPath(); ctx.moveTo(ax,s0y-3); ctx.lineTo(ax,s1y+6); ctx.stroke();
+      ctx.fillStyle='#9966ff';
+      ctx.beginPath(); ctx.moveTo(ax,s1y+3); ctx.lineTo(ax-5,s1y+10); ctx.lineTo(ax+5,s1y+10); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#cc99ff'; ctx.font='bold 11px -apple-system, PingFang SC, sans-serif'; ctx.textAlign='left';
+      ctx.fillText('紫外吸收', ax+8,s0y-gap*0.5);
+      ctx.fillText('≈350 nm', ax+8,s0y-gap*0.5+15);
+      ctx.restore();
+    }
+  }
+
+  // 内转换虚线
+  if(t>0.25){
+    const io=Math.min(1,(t-0.25)*6);
+    if(io>0.005){
+      ctx.save(); ctx.globalAlpha=io*0.4;
+      ctx.strokeStyle='#ffaa66'; ctx.lineWidth=1; ctx.setLineDash([2,4]);
+      const ix=ax+35;
+      ctx.beginPath();
+      for(let i=0;i<6;i++){ const f=i/6, x=ix-(i%2?3:-3), y=s1y+6+(s1y+28-s1y-6)*f; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle='#ffaa66'; ctx.font='9px -apple-system, PingFang SC, sans-serif'; ctx.textAlign='left';
+      ctx.fillText('内转换', ix+12,s1y+20);
+      ctx.restore();
+    }
+  }
+
+  // 荧光发射箭头
+  const ex=ax+70;
+  const ey1=s1y+6, ey2=s0y-16;
+  if(t>0.5){
+    const eo=Math.min(1,(t-0.5)*4);
+    if(eo>0.005){
+      ctx.save(); ctx.globalAlpha=eo;
+      ctx.strokeStyle='#44aaff'; ctx.lineWidth=2.4;
+      ctx.beginPath(); ctx.moveTo(ex,ey1); ctx.lineTo(ex,ey2); ctx.stroke();
+      ctx.fillStyle='#44aaff';
+      ctx.beginPath(); ctx.moveTo(ex,ey2-3); ctx.lineTo(ex-5,ey2+4); ctx.lineTo(ex+5,ey2+4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#66bbff'; ctx.font='bold 11px -apple-system, PingFang SC, sans-serif'; ctx.textAlign='left';
+      ctx.fillText('荧光辐射', ex+8, s1y+(ey2-s1y)*0.4);
+      ctx.fillText('≈450 nm', ex+8, s1y+(ey2-s1y)*0.4+16);
+      ctx.restore();
+    }
+  }
+
+  // 斯托克斯位移
+  if(t>0.6){
+    const so=Math.min(1,(t-0.6)*5);
+    if(so>0.005){
+      ctx.save(); ctx.globalAlpha=so;
+      const sx=ex+28;
+      ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=0.6; ctx.setLineDash([2,3]);
+      ctx.beginPath(); ctx.moveTo(sx,ey2+3); ctx.lineTo(sx,s0y-3); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='rgba(255,255,255,0.6)';
+      ctx.beginPath(); ctx.moveTo(sx,ey2+3); ctx.lineTo(sx-3,ey2+8); ctx.moveTo(sx,ey2+3); ctx.lineTo(sx+3,ey2+8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx,s0y-3); ctx.lineTo(sx-3,s0y-8); ctx.moveTo(sx,s0y-3); ctx.lineTo(sx+3,s0y-8); ctx.stroke();
+      ctx.fillStyle='#ffffff'; ctx.font='bold 10px -apple-system, PingFang SC, sans-serif'; ctx.textAlign='left';
+      ctx.fillText('斯托克斯位移', sx+6, ey2+(s0y-ey2)*0.5+2);
+      ctx.fillText('激发 > 发射能量', sx+6, ey2+(s0y-ey2)*0.5+14);
+      ctx.restore();
+    }
+  }
+
+  // X轴标签
+  ctx.fillStyle='#8888aa'; ctx.font='10px -apple-system, PingFang SC, sans-serif'; ctx.textAlign='center';
+  ctx.fillText('基态', ax, B-2);
+  ctx.fillText('激发', ax+38, B-2);
+  ctx.fillText('荧光回落', ex, B-2);
+}
+
+// ========== 状态管理 ==========
+let progress = 0, playing = false;
+let lastRedraw = -1; // 用于节流能级图重绘
+
+const pBar = document.getElementById('progress-bar');
+const pTime = document.getElementById('progress-time');
+const pLabel = document.getElementById('phase-label');
+const pDesc = document.getElementById('step-desc');
+const btnPlay = document.getElementById('btn-play');
+
+// 预存文本（避免每帧 innerHTML）
+const descTexts = [
+  '分子处于电子基态 S₀<br>π 电子位于 HOMO 轨道',
+  '紫外光子 (≈350 nm) 激发共轭大π环<br>π 电子从 S₀ 跃迁至 S₁',
+  '电子短暂停留于 S₁ 激发态<br>分子结构不变，无化学键变化',
+  '电子从 S₁ 辐射回落至 S₀<br>释放蓝色荧光 ≈450 nm'
+];
+const phases = ['基态 S₀','UV 激发','激发态 S₁','荧光发射'];
+const phaseCls = ['','uv','ex','em'];
+
+function getPhase(t) {
+  if (t<0.01) return 0;
+  if (t<0.30) return 1;
+  if (t<0.70) return 2;
+  return 3;
+}
+
+function syncUI(t) {
+  const raw = Math.round(t*100);
+  if (raw !== progress) {
+    progress = raw;
+    pBar.value = progress;
+    pTime.textContent = progress + '%';
+  }
+}
+
+pBar.addEventListener('input', () => {
+  progress = parseInt(pBar.value);
+  pTime.textContent = progress+'%';
+  const t = progress/100;
+  const p = getPhase(t);
+  pLabel.textContent = phases[p]; pLabel.className = 'phase-label ' + phaseCls[p];
+  pDesc.innerHTML = descTexts[p];
+  applyFx(t);
+  lastDrawnT = -1;
+});
+
+function applyFx(t) {
+  // UV光束
+  if (t>0.01&&t<0.40) {
+    const f=t<0.15?(t-0.01)/0.14:1-(t-0.15)/0.25;
+    uvBeam.material.opacity = Math.max(0, f*0.45);
+  } else {
+    uvBeam.material.opacity = 0;
+  }
+
+  // 共轭环
+  const rg = t<0.01?0.12 : t<0.30?0.12+(t-0.01)/0.29*0.40 : t<0.70?0.52 : 0.52-(t-0.70)/0.30*0.40;
+  ring.material.opacity = rg;
+
+  // 原子 + 光晕
+  const gg = t<0.01?0 : t<0.30?(t-0.01)/0.29 : t<0.70?1 : 1-(t-0.70)/0.30;
+  for(let i=0;i<aMeshes.length;i++){
+    const m=aMeshes[i];
+    if(m.userData.core) m.material.emissiveIntensity = m.userData.be + gg*1.0;
+  }
+  for(let i=0;i<gSprites.length;i++){
+    const s=gSprites[i];
+    if(s.userData.core){
+      s.material.opacity = s.userData.bo + gg*0.5;
+      const sc = s.userData.bs*(1+gg*1.6);
+      s.scale.set(sc,sc,1);
+    }
+  }
+
+  // 荧光粒子
+  if (t>0.70) {
+    const ef=(t-0.70)/0.30;
+    epM.opacity = ef*0.7;
+    const pa = ep.geometry.attributes.position.array;
+    for(let i=0;i<ec;i++){
+      const d=ed[i];
+      if(!d.k){ d.a=Math.random()*Math.PI*2; d.e=(Math.random()-0.5)*Math.PI*0.7; d.s=0.25+Math.random()*0.6; d.m=2+Math.random()*3.5; d.k=1; d.d=0; }
+      d.d+=d.s*0.025;
+      if(d.d>d.m){ d.k=0; d.d=0; }
+      if(d.k){ pa[i*3]=rc.x+d.d*Math.cos(d.e)*Math.cos(d.a); pa[i*3+1]=rc.y+d.d*Math.sin(d.e); pa[i*3+2]=rc.z+d.d*Math.cos(d.e)*Math.sin(d.a); }
+      else { pa[i*3]=rc.x; pa[i*3+1]=rc.y; pa[i*3+2]=rc.z; }
+    }
+    ep.geometry.attributes.position.needsUpdate=true;
+  } else {
+    epM.opacity=0;
+    const pa=ep.geometry.attributes.position.array;
+    for(let i=0;i<ec;i++){ ed[i].k=0; ed[i].d=0; pa[i*3]=rc.x; pa[i*3+1]=rc.y; pa[i*3+2]=rc.z; }
+    ep.geometry.attributes.position.needsUpdate=true;
+  }
+
+  ambient.intensity = t>0.01&&t<0.70 ? 2.0+gg*0.8 : 2.0;
+}
+
+// ========== 渲染循环（大幅精简）==========
+const clock = new THREE.Clock();
+let frameSkip = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.1);
+
+  // 自动播放 - 到 100% 后直接跳回 0%
+  if (playing) {
+    let raw = progress + 16 * dt;
+    if (raw >= 100) { raw = 0; }
+    progress = raw;
+    const t = progress / 100;
+    pBar.value = Math.round(progress);
+    pTime.textContent = Math.round(progress) + '%';
+    const p = getPhase(t);
+    pLabel.textContent = phases[p]; pLabel.className = 'phase-label ' + phaseCls[p];
+    pDesc.innerHTML = descTexts[p];
+    applyFx(t);
+
+    // 能级图仅在变化超过阈值时重绘
+    if (Math.abs(t - lastDrawnT) > 0.005) {
+      drawEnergy(t);
+      lastDrawnT = t;
+    }
+  }
+
+  // OrbitControls 仅在需要时更新
+  if (controls.autoRotate) {
+    controls.update();
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ========== 按钮 ==========
+window.togglePlay = function() {
+  playing = !playing;
+  if (playing) {
+    if (progress>=99) { progress=0; }
+    btnPlay.textContent = '暂停';
+    btnPlay.classList.add('playing');
+  } else {
+    btnPlay.textContent = '自动播放';
+    btnPlay.classList.remove('playing');
+  }
+};
+
+window.resetAll = function() {
+  playing = false;
+  progress = 0;
+  syncUI(0);
+  pLabel.textContent = phases[0]; pLabel.className = 'phase-label ';
+  pDesc.innerHTML = descTexts[0];
+  applyFx(0);
+  lastDrawnT = -1;
+  drawEnergy(0);
+  lastDrawnT = 0;
+  btnPlay.textContent = '自动播放';
+  btnPlay.classList.remove('playing');
+};
+
+// ========== 初始化 ==========
+syncUI(0);
+applyFx(0);
+drawEnergy(0);
+lastDrawnT = 0;
+
+pDesc.innerHTML = '拖动进度条或点击「自动播放」<br>观察 紫外激发 → 荧光发射 完整过程';
+
+// 响应式
+function resize() {
+  const w=container.clientWidth, h=container.clientHeight;
+  if (w===0||h===0) return;
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h, false);
+  setupEnergyCanvas();
+  lastDrawnT = -1;
+}
+window.addEventListener('resize', resize);
+resize();
+
+animate();
+
+console.log('香豆素-3-羧酸荧光演示已就绪 (优化版)');
+</script>
+</body>
+</html>

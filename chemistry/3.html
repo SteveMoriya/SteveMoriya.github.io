@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>香豆素-3-羧酸 — 荧光分子 3D 可视化</title>
+<style>
+  :root {
+    --bg: #0a0a14;
+    --panel-bg: rgba(14, 14, 30, 0.92);
+    --text: #e0e0f0;
+    --text-dim: #8888aa;
+    --accent: #00ccff;
+    --accent2: #7b3fe4;
+    --glow: #00eeff;
+    --glow2: #a855f7;
+    --border: rgba(120, 120, 180, 0.2);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    color: var(--text);
+  }
+  #canvas-container {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+  }
+  canvas { display: block; }
+
+  /* 顶部标题栏 */
+  #title-bar {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 28px;
+    backdrop-filter: blur(20px);
+    text-align: center;
+    pointer-events: auto;
+  }
+  #title-bar h1 {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--glow), var(--glow2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 0.5px;
+  }
+  #title-bar .sub {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* 信息面板 */
+  #info-panel {
+    position: fixed;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    backdrop-filter: blur(20px);
+    width: 260px;
+    pointer-events: auto;
+  }
+  #info-panel h3 {
+    font-size: 14px;
+    color: var(--accent);
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .info-row .label { color: var(--text-dim); }
+  .info-row .value { color: var(--text); font-weight: 500; }
+
+  /* 图例 */
+  #legend {
+    position: fixed;
+    left: 20px;
+    bottom: 80px;
+    z-index: 10;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    backdrop-filter: blur(20px);
+    pointer-events: auto;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 12px;
+  }
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* 底部控件 */
+  #controls {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    gap: 12px;
+    pointer-events: auto;
+  }
+  button {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 20px;
+    border-radius: 24px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    backdrop-filter: blur(20px);
+    transition: all 0.3s;
+    white-space: nowrap;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.active {
+    background: rgba(0, 204, 255, 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 20px rgba(0, 204, 255, 0.2);
+  }
+
+  /* 响应式 */
+  @media (max-width: 768px) {
+    #info-panel { right: 8px; width: 220px; padding: 14px 16px; font-size: 11px; }
+    #title-bar { padding: 10px 18px; }
+    #title-bar h1 { font-size: 17px; }
+    #controls { gap: 6px; }
+    button { padding: 8px 14px; font-size: 11px; }
+    #legend { left: 8px; bottom: 70px; padding: 10px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="title-bar">
+  <h1>香豆素-3-羧酸</h1>
+  <div class="sub">Coumarin-3-carboxylic Acid · C₁₀H₆O₄ · 荧光分子</div>
+</div>
+
+<div id="info-panel">
+  <h3>⚛ 分子信息</h3>
+  <div class="info-row"><span class="label">分子式</span><span class="value">C₁₀H₆O₄</span></div>
+  <div class="info-row"><span class="label">分子量</span><span class="value">190.15 g/mol</span></div>
+  <div class="info-row"><span class="label">IUPAC</span><span class="value">2-Oxo-2H-chromene-3-carboxylic acid</span></div>
+  <div class="info-row"><span class="label">类别</span><span class="value">香豆素类荧光染料</span></div>
+  <div class="info-row"><span class="label">激发波长</span><span class="value">~350 nm (UV)</span></div>
+  <div class="info-row"><span class="label">发射波长</span><span class="value">~450 nm (蓝光)</span></div>
+  <div class="info-row"><span class="label">发光机理</span><span class="value">π→π* 跃迁 + ICT</span></div>
+</div>
+
+<div id="legend">
+  <div class="legend-item"><span class="legend-dot" style="background:#404040;"></span> 碳 C</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#ff3333;"></span> 氧 O</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#ffffff; border: 1px solid #555;"></span> 氢 H</div>
+  <div class="legend-item" style="margin-top:6px;color:var(--text-dim);">💡 拖拽旋转 · 滚轮缩放</div>
+</div>
+
+<div id="controls">
+  <button id="btn-uv" onclick="toggleUV()">🔆 UV 激发</button>
+  <button id="btn-auto" class="active" onclick="toggleAutoRotate()">🔄 自动旋转</button>
+  <button id="btn-reset" onclick="resetView()">↺ 重置视角</button>
+  <button id="btn-wire" onclick="toggleWireframe()">🔍 线框</button>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ============ 分子数据定义 ============
+// 香豆素-3-羧酸: 苯环 + 吡喃酮环 + 3位羧基
+
+const atoms = [
+  // --- 苯环 (positions 5-10) ---
+  { id:'C5',  el:'C', pos:[-0.80, 0.00, 1.21], label:'C5' },
+  { id:'C6',  el:'C', pos:[-2.10, 0.00, 1.80], label:'C6' },
+  { id:'C7',  el:'C', pos:[-3.30, 0.00, 1.05], label:'C7' },
+  { id:'C8',  el:'C', pos:[-3.30, 0.00,-0.60], label:'C8' },
+  { id:'C9',  el:'C', pos:[-2.10, 0.00,-1.55], label:'C9' },
+  { id:'C10', el:'C', pos:[-0.80, 0.00,-0.80], label:'C10' },
+  // --- 苯环上的 H ---
+  { id:'H6',  el:'H', pos:[-2.25, 0.85, 2.65], label:'' },
+  { id:'H7',  el:'H', pos:[-4.25, 0.45, 1.55], label:'' },
+  { id:'H8',  el:'H', pos:[-4.30, 0.05,-1.00], label:'' },
+  { id:'H9',  el:'H', pos:[-2.20,-0.55,-2.50], label:'' },
+
+  // --- 吡喃酮环 (O1, C2, C3, C4) ---
+  { id:'O1',  el:'O', pos:[ 0.60, 0.00,-0.42], label:'O'  },
+  { id:'C2',  el:'C', pos:[ 0.25, 0.00, 1.40], label:'C2' },
+  { id:'C3',  el:'C', pos:[ 1.55, 0.00, 0.50], label:'C3' },
+  { id:'C4',  el:'C', pos:[ 0.95, 0.00,-1.10], label:'C4' },
+  // --- 羰基氧 ---
+  { id:'O2',  el:'O', pos:[-0.15, 0.80, 2.30], label:'O (C=O)' },
+  // --- C4 上的 H ---
+  { id:'H4',  el:'H', pos:[ 1.40, 0.90,-1.70], label:'' },
+
+  // --- 3位羧基 (-COOH) ---
+  { id:'C_COOH', el:'C', pos:[ 2.65,-0.35, 1.20], label:'COOH' },
+  { id:'O_COOH1',el:'O', pos:[ 2.40,-1.30, 1.65], label:'O (C=O)' },
+  { id:'O_COOH2',el:'O', pos:[ 3.80, 0.05, 1.30], label:'O-H' },
+  { id:'H_COOH', el:'H', pos:[ 4.30, 0.60, 1.80], label:'' },
+];
+
+const bonds = [
+  // 苯环 (芳香键, 交替单双键示意)
+  { a:'C5', b:'C6', order:1.5 },
+  { a:'C6', b:'C7', order:1.5 },
+  { a:'C7', b:'C8', order:1.5 },
+  { a:'C8', b:'C9', order:1.5 },
+  { a:'C9', b:'C10',order:1.5 },
+  { a:'C10',b:'C5', order:1.5 },
+  // 苯环 C-H
+  { a:'C6', b:'H6', order:1 },
+  { a:'C7', b:'H7', order:1 },
+  { a:'C8', b:'H8', order:1 },
+  { a:'C9', b:'H9', order:1 },
+
+  // 吡喃酮环
+  { a:'O1', b:'C2', order:1 },
+  { a:'C2', b:'C3', order:1 },
+  { a:'C3', b:'C4', order:2 },
+  { a:'C4', b:'C5', order:1 },
+  { a:'C10',b:'O1', order:1 },
+  // 羰基
+  { a:'C2', b:'O2', order:2 },
+  // C4-H
+  { a:'C4', b:'H4', order:1 },
+
+  // 3-COOH
+  { a:'C3', b:'C_COOH',order:1 },
+  { a:'C_COOH',b:'O_COOH1',order:2 },
+  { a:'C_COOH',b:'O_COOH2',order:1 },
+  { a:'O_COOH2',b:'H_COOH',order:1 },
+];
+
+// 元素视觉属性
+const EL_COLORS = {
+  C: 0x404040,
+  H: 0xf0f0f0,
+  O: 0xff3333,
+  N: 0x3050f0,
+};
+const EL_RADII = { C:0.35, H:0.22, O:0.32, N:0.35 };
+const EL_GLOW = {
+  C: '#666666',
+  H: '#ddddff',
+  O: '#ff6666',
+  N: '#6688ff',
+};
+
+// ============ Three.js 场景 ============
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+
+// 星空背景
+const starGeom = new THREE.BufferGeometry();
+const starCount = 600;
+const starPos = new Float32Array(starCount * 3);
+for (let i = 0; i < starCount; i++) {
+  starPos[i*3] = (Math.random() - 0.5) * 60;
+  starPos[i*3+1] = (Math.random() - 0.5) * 60;
+  starPos[i*3+2] = (Math.random() - 0.5) * 60;
+}
+starGeom.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const starMat = new THREE.PointsMaterial({ color:0x444488, size:0.06, transparent:true, opacity:0.7 });
+const stars = new THREE.Points(starGeom, starMat);
+scene.add(stars);
+
+// 光照
+const ambientLight = new THREE.AmbientLight(0x333355, 1.8);
+scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+dirLight.position.set(5, 8, 5);
+scene.add(dirLight);
+const dirLight2 = new THREE.DirectionalLight(0x8888ff, 0.8);
+dirLight2.position.set(-5, -3, -5);
+scene.add(dirLight2);
+
+// 相机
+const camera = new THREE.PerspectiveCamera(50, container.clientWidth/container.clientHeight, 0.1, 100);
+camera.position.set(3, 4, 9);
+camera.lookAt(-0.8, -0.2, 0.3);
+
+// 渲染器
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+container.appendChild(renderer.domElement);
+
+// OrbitControls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(-0.8, -0.2, 0.3);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.6;
+controls.minDistance = 3;
+controls.maxDistance = 20;
+controls.maxPolarAngle = Math.PI * 0.8;
+controls.update();
+
+// ============ 分子渲染 ============
+const atomMap = new Map();
+atoms.forEach(a => atomMap.set(a.id, a));
+
+// 发光精灵系统
+const glowSprites = [];
+const glowCanvas = document.createElement('canvas');
+glowCanvas.width = 128;
+glowCanvas.height = 128;
+const gctx = glowCanvas.getContext('2d');
+const gradient = gctx.createRadialGradient(64,64,0, 64,64,64);
+gradient.addColorStop(0, 'rgba(255,255,255,1)');
+gradient.addColorStop(0.08, 'rgba(255,255,255,0.9)');
+gradient.addColorStop(0.2, 'rgba(255,255,255,0.5)');
+gradient.addColorStop(0.4, 'rgba(255,255,255,0.12)');
+gradient.addColorStop(0.7, 'rgba(255,255,255,0.02)');
+gradient.addColorStop(1, 'rgba(255,255,255,0)');
+gctx.fillStyle = gradient;
+gctx.fillRect(0,0,128,128);
+const glowTex = new THREE.CanvasTexture(glowCanvas);
+
+// 荧光大光晕
+const bloomCanvas = document.createElement('canvas');
+bloomCanvas.width = 256;
+bloomCanvas.height = 256;
+const bctx = bloomCanvas.getContext('2d');
+const bloomGrad = bctx.createRadialGradient(128,128,0, 128,128,128);
+bloomGrad.addColorStop(0, 'rgba(0,220,255,0.7)');
+bloomGrad.addColorStop(0.15, 'rgba(0,200,255,0.35)');
+bloomGrad.addColorStop(0.35, 'rgba(80,50,220,0.10)');
+bloomGrad.addColorStop(0.6, 'rgba(0,180,255,0.03)');
+bloomGrad.addColorStop(1, 'rgba(0,0,0,0)');
+bctx.fillStyle = bloomGrad;
+bctx.fillRect(0,0,256,256);
+const bloomTex = new THREE.CanvasTexture(bloomCanvas);
+
+const moleculeGroup = new THREE.Group();
+scene.add(moleculeGroup);
+
+// 绘制原子
+const atomMeshes = [];
+atoms.forEach((a, idx) => {
+  const color = EL_COLORS[a.el];
+  const radius = EL_RADII[a.el];
+
+  // 主球体
+  const geom = new THREE.SphereGeometry(radius, 32, 32);
+  const mat = new THREE.MeshStandardMaterial({
+    color: color,
+    roughness: 0.35,
+    metalness: 0.1,
+    emissive: new THREE.Color(EL_GLOW[a.el]),
+    emissiveIntensity: 0.3,
+  });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.position.set(a.pos[0], a.pos[1], a.pos[2]);
+  mesh.userData = { atomIndex: idx, el: a.el, baseEmissive: 0.3 };
+  moleculeGroup.add(mesh);
+  atomMeshes.push(mesh);
+
+  // 发光光晕精灵
+  const spriteMat = new THREE.SpriteMaterial({
+    map: glowTex,
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    opacity: 0.25,
+    color: new THREE.Color(EL_GLOW[a.el]),
+    depthWrite: false,
+  });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.position.copy(mesh.position);
+  sprite.scale.set(radius * 3.5, radius * 3.5, 1);
+  sprite.userData = { atomIndex: idx, baseOpacity: 0.25, baseScale: radius * 3.5 };
+  moleculeGroup.add(sprite);
+  glowSprites.push(sprite);
+
+  // 原子标签（主要原子）
+  if (a.label) {
+    const labelCanvas = document.createElement('canvas');
+    labelCanvas.width = 128;
+    labelCanvas.height = 64;
+    const lctx = labelCanvas.getContext('2d');
+    lctx.fillStyle = '#c0c0e0';
+    lctx.font = 'bold 28px -apple-system, PingFang SC, sans-serif';
+    lctx.textAlign = 'center';
+    lctx.fillText(a.label, 64, 38);
+    const labelTex = new THREE.CanvasTexture(labelCanvas);
+    labelTex.minFilter = THREE.LinearFilter;
+    const labelMat = new THREE.SpriteMaterial({
+      map: labelTex,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+    });
+    const labelSprite = new THREE.Sprite(labelMat);
+    labelSprite.position.set(a.pos[0], a.pos[1] + radius + 0.5, a.pos[2]);
+    labelSprite.scale.set(1.5, 0.75, 1);
+    moleculeGroup.add(labelSprite);
+  }
+});
+
+// 绘制化学键
+function createBond(p1, p2, order) {
+  const mid = new THREE.Vector3().addVectors(
+    new THREE.Vector3(p1[0],p1[1],p1[2]),
+    new THREE.Vector3(p2[0],p2[1],p2[2])
+  ).multiplyScalar(0.5);
+  const dir = new THREE.Vector3(p2[0],p2[1],p2[2]).sub(
+    new THREE.Vector3(p1[0],p1[1],p1[2])
+  );
+  const len = dir.length();
+  dir.normalize();
+
+  const cylGeom = new THREE.CylinderGeometry(0.08, 0.08, len, 8);
+  const cylMat = new THREE.MeshStandardMaterial({
+    color:0x8899aa, roughness:0.5, metalness:0.2, emissive:0x111122, emissiveIntensity:0.15
+  });
+  const cyl = new THREE.Mesh(cylGeom, cylMat);
+  cyl.position.copy(mid);
+
+  // 对齐方向
+  const quat = new THREE.Quaternion();
+  quat.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+  cyl.setRotationFromQuaternion(quat);
+
+  return cyl;
+}
+
+// 双键偏移
+function createDoubleBond(p1, p2) {
+  const group = new THREE.Group();
+  const dir = new THREE.Vector3(p2[0],p2[1],p2[2]).sub(
+    new THREE.Vector3(p1[0],p1[1],p1[2])
+  ).normalize();
+
+  // 计算偏移方向
+  const up = new THREE.Vector3(0, 1, 0);
+  const perp = new THREE.Vector3().crossVectors(dir, up).normalize();
+  if (perp.length() < 0.1) {
+    perp.set(1, 0, 0);
+    perp.crossVectors(dir, new THREE.Vector3(0,0,1)).normalize();
+  }
+  const offset = perp.clone().multiplyScalar(0.12);
+
+  const bond1 = createBond(
+    [p1[0]+offset.x, p1[1]+offset.y, p1[2]+offset.z],
+    [p2[0]+offset.x, p2[1]+offset.y, p2[2]+offset.z],
+    1
+  );
+  const bond2 = createBond(
+    [p1[0]-offset.x, p1[1]-offset.y, p1[2]-offset.z],
+    [p2[0]-offset.x, p2[1]-offset.y, p2[2]-offset.z],
+    1
+  );
+  group.add(bond1);
+  group.add(bond2);
+  return group;
+}
+
+bonds.forEach(b => {
+  const a1 = atomMap.get(b.a);
+  const a2 = atomMap.get(b.b);
+  if (!a1 || !a2) return;
+
+  if (b.order >= 1.5) {
+    moleculeGroup.add(createDoubleBond(a1.pos, a2.pos));
+  } else {
+    moleculeGroup.add(createBond(a1.pos, a2.pos, 1));
+  }
+});
+
+// 荧光大光晕 (分子级)
+const bloomSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: bloomTex,
+  blending: THREE.AdditiveBlending,
+  transparent: true,
+  opacity: 0,
+  color: new THREE.Color('#00ccff'),
+  depthWrite: false,
+}));
+bloomSprite.position.set(-0.8, -0.2, 0.3);
+bloomSprite.scale.set(10, 10, 1);
+bloomSprite.name = 'bloom';
+moleculeGroup.add(bloomSprite);
+
+// 浮动荧光粒子环
+const particleCount = 200;
+const particleGeom = new THREE.BufferGeometry();
+const particlePositions = new Float32Array(particleCount * 3);
+const particleSizes = new Float32Array(particleCount);
+const particleData = [];
+for (let i = 0; i < particleCount; i++) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.random() * Math.PI;
+  const r = 3.5 + Math.random() * 2.5;
+  particlePositions[i*3] = -0.8 + r * Math.sin(phi) * Math.cos(theta);
+  particlePositions[i*3+1] = -0.2 + r * Math.cos(phi);
+  particlePositions[i*3+2] = 0.3 + r * Math.sin(phi) * Math.sin(theta);
+  particleSizes[i] = Math.random() * 0.04 + 0.01;
+  particleData.push({
+    baseX: particlePositions[i*3],
+    baseY: particlePositions[i*3+1],
+    baseZ: particlePositions[i*3+2],
+    speed: 0.3 + Math.random() * 0.8,
+    phase: Math.random() * Math.PI * 2,
+    amplitude: 0.1 + Math.random() * 0.3,
+    r: r,
+    theta: theta,
+    phi: phi,
+    phiSpeed: (Math.random() - 0.5) * 0.3,
+  });
+}
+particleGeom.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+particleGeom.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
+const particleMat = new THREE.PointsMaterial({
+  color: 0x44ccff,
+  size: 0.05,
+  blending: THREE.AdditiveBlending,
+  transparent: true,
+  opacity: 0.6,
+  depthWrite: false,
+});
+const particles = new THREE.Points(particleGeom, particleMat);
+particles.name = 'particles';
+moleculeGroup.add(particles);
+
+// ============ 状态管理 ============
+let uvActive = false;
+let wireframeMode = false;
+const wireframeHelpers = [];
+
+// ============ 动画循环 ============
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const t = clock.getElapsedTime();
+  controls.update();
+
+  // 星空缓慢旋转
+  stars.rotation.y += 0.0001;
+  stars.rotation.x += 0.00005;
+
+  // 荧光动画
+  const bloomIntensity = uvActive ? (0.5 + Math.sin(t * 2.5) * 0.35 + Math.sin(t * 1.7) * 0.15) : (0.08 + Math.sin(t * 0.8) * 0.05);
+
+  // Bloom 光晕
+  bloomSprite.material.opacity = uvActive ? bloomIntensity : 0.05;
+  if (uvActive) {
+    const bScale = 8 + Math.sin(t * 2) * 1.5 + Math.sin(t * 3.3) * 0.8;
+    bloomSprite.scale.set(bScale, bScale, 1);
+    bloomSprite.material.color.set('#00ccff');
+  }
+
+  // 原子发光强度脉动
+  atomMeshes.forEach(mesh => {
+    const base = uvActive ? 1.0 : 0.3;
+    const pulse = uvActive ? Math.sin(t * 3 + mesh.userData.atomIndex * 0.5) * 0.4 : 0;
+    mesh.material.emissiveIntensity = base + pulse;
+  });
+
+  // 光晕精灵
+  glowSprites.forEach(sprite => {
+    const baseOp = uvActive ? 0.6 : sprite.userData.baseOpacity;
+    const pulse = uvActive ? Math.sin(t * 2.8 + sprite.userData.atomIndex * 0.4) * 0.25 : 0;
+    sprite.material.opacity = baseOp + pulse;
+    const baseSc = uvActive ? sprite.userData.baseScale * 1.8 : sprite.userData.baseScale;
+    const sPulse = uvActive ? Math.sin(t * 3.5 + sprite.userData.atomIndex * 0.6) * 0.3 : 0;
+    sprite.scale.set(baseSc + sPulse, baseSc + sPulse, 1);
+  });
+
+  // 粒子动画
+  if (uvActive) {
+    particleMat.opacity = 0.6 + Math.sin(t * 1.5) * 0.2;
+    particleMat.color.set('#44ddff');
+  } else {
+    particleMat.opacity = 0.15;
+    particleMat.color.set('#334466');
+  }
+
+  const posArray = particles.geometry.attributes.position.array;
+  for (let i = 0; i < particleCount; i++) {
+    const pd = particleData[i];
+    pd.theta += 0.003;
+    pd.phi += pd.phiSpeed * 0.005;
+    const currentR = pd.r + Math.sin(t * pd.speed + pd.phase) * pd.amplitude;
+    posArray[i*3]   = -0.8 + currentR * Math.sin(pd.phi) * Math.cos(pd.theta);
+    posArray[i*3+1] = -0.2 + currentR * Math.cos(pd.phi);
+    posArray[i*3+2] = 0.3 + currentR * Math.sin(pd.phi) * Math.sin(pd.theta);
+  }
+  particles.geometry.attributes.position.needsUpdate = true;
+
+  // 场景环境光
+  if (uvActive) {
+    ambientLight.intensity = 1.8 + Math.sin(t * 2) * 0.4;
+    ambientLight.color.set('#334466');
+    dirLight.intensity = 2.0;
+    dirLight2.intensity = 1.3;
+    dirLight2.color.set('#6688ff');
+    renderer.toneMappingExposure = 1.5;
+  } else {
+    ambientLight.intensity = 1.8;
+    ambientLight.color.set('#333355');
+    dirLight.intensity = 1.5;
+    dirLight2.intensity = 0.8;
+    dirLight2.color.set('#8888ff');
+    renderer.toneMappingExposure = 1.2;
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ============ 按钮事件 ============
+window.toggleUV = function() {
+  uvActive = !uvActive;
+  const btn = document.getElementById('btn-uv');
+  if (uvActive) {
+    btn.classList.add('active');
+    btn.textContent = '🔆 UV 激发中...';
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '🔆 UV 激发';
+  }
+};
+
+window.toggleAutoRotate = function() {
+  controls.autoRotate = !controls.autoRotate;
+  const btn = document.getElementById('btn-auto');
+  if (controls.autoRotate) {
+    btn.classList.add('active');
+    btn.textContent = '🔄 自动旋转';
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '▶ 手动旋转';
+  }
+};
+
+window.resetView = function() {
+  camera.position.set(3, 4, 9);
+  controls.target.set(-0.8, -0.2, 0.3);
+  controls.update();
+};
+
+window.toggleWireframe = function() {
+  wireframeMode = !wireframeMode;
+  const btn = document.getElementById('btn-wire');
+  if (wireframeMode) {
+    btn.classList.add('active');
+    atomMeshes.forEach(m => { m.material.wireframe = true; });
+  } else {
+    btn.classList.remove('active');
+    atomMeshes.forEach(m => { m.material.wireframe = false; });
+  }
+};
+
+// 响应式
+window.addEventListener('resize', () => {
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+});
+
+// 键盘控制
+window.addEventListener('keydown', (e) => {
+  switch(e.key.toLowerCase()) {
+    case 'u': toggleUV(); break;
+    case 'r': resetView(); break;
+    case 'a': toggleAutoRotate(); break;
+    case 'w': toggleWireframe(); break;
+  }
+});
+
+// 启动
+animate();
+
+console.log('🔬 香豆素-3-羧酸 荧光分子 3D 可视化已就绪');
+console.log('  拖拽旋转 | 滚轮缩放 | 右键平移');
+console.log('  快捷键: U=UV激发 R=重置 A=自动旋转 W=线框');
+</script>
+</body>
+</html>
