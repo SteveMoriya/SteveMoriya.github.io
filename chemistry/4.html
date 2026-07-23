@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实战演练：荧光加解密（Edu Chem Reaction 仿真交互）</title>
+<style>
+:root {
+  --bg: #080c14;
+  --surface: rgba(18,26,38,0.94);
+  --surface-2: rgba(28,38,52,0.85);
+  --border: rgba(80,120,160,0.18);
+  --text: #cad4e0;
+  --text-dim: #6a7a8c;
+  --uv: #9966ff;
+  --red-fl: #ff3344;
+  --green-fl: #44dd55;
+  --blue-fl: #5566ff;
+  --codex-green: #33ff88;
+  --warn: #ff8844;
+  --accent: #66aaff;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  height: 100vh; width: 100vw; overflow: hidden;
+  color: var(--text);
+  display: flex; flex-direction: column;
+  user-select: none;
+}
+
+/* ===== Header ===== */
+#header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px; flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(14,20,30,0.95), rgba(8,12,20,0.9));
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+}
+#header h1 {
+  font-size: 17px; font-weight: 700;
+  background: linear-gradient(135deg, #66bbff, #33ff88);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+#scene-badge {
+  font-size: 12px; padding: 4px 14px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  transition: all 0.3s;
+}
+
+/* ===== Main layout ===== */
+#main { flex: 1; display: flex; min-height: 0; }
+#map-container {
+  flex: 1; position: relative; min-width: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px;
+}
+#tactical-canvas {
+  border-radius: 8px;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(120,150,180,0.1);
+  cursor: crosshair;
+}
+
+/* ===== Right panel ===== */
+#right-panel {
+  width: 320px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px; overflow-y: auto;
+  border-left: 1px solid var(--border);
+  background: rgba(6,10,16,0.6);
+}
+.panel-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px;
+}
+.panel-card h3 {
+  font-size: 11px; color: var(--accent); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.engine-tag {
+  font-size: 9px; padding: 1px 6px; border-radius: 4px;
+  background: rgba(100,150,200,0.12); color: #88aacc;
+}
+
+/* Codex */
+#codex-panel { font-family: 'SF Mono', 'Courier New', monospace; transition: all 0.4s; }
+#codex-panel.locked { opacity: 0.35; filter: grayscale(0.8); }
+#codex-binary {
+  font-size: 18px; font-weight: 700; color: var(--codex-green);
+  letter-spacing: 3px; padding: 10px; text-align: center;
+  background: rgba(0,20,0,0.4); border-radius: 6px; margin: 6px 0;
+  min-height: 40px; text-shadow: 0 0 8px rgba(51,255,136,0.3);
+  border: 1px solid rgba(51,255,136,0.1);
+}
+#codex-text {
+  font-size: 13px; color: #aaffcc; line-height: 1.7;
+  padding: 8px 10px; background: rgba(0,20,0,0.25); border-radius: 6px;
+  min-height: 50px; white-space: pre-line;
+  border: 1px solid rgba(51,255,136,0.08);
+}
+#codex-status {
+  font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 6px;
+  min-height: 16px;
+}
+#codex-status.decoding { color: var(--codex-green); }
+#codex-status.error { color: var(--warn); }
+
+/* DeepSeek hint */
+#ds-hint {
+  font-size: 12px; color: var(--text-dim); line-height: 1.6;
+  padding: 10px; background: var(--surface-2); border-radius: 8px;
+  border-left: 3px solid var(--warn);
+  min-height: 50px;
+}
+
+/* Color legend */
+#legend-card { font-size: 10px; }
+#color-legend { display: flex; gap: 14px; justify-content: center; }
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+/* ===== Footer ===== */
+#footer {
+  flex-shrink: 0; padding: 10px 20px 12px;
+  background: rgba(8,12,20,0.85);
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 10;
+}
+#controls { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.btn-tool {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); padding: 8px 16px; border-radius: 8px;
+  cursor: pointer; font-size: 13px; font-family: inherit;
+  display: flex; align-items: center; gap: 6px;
+  transition: all 0.2s;
+}
+.btn-tool:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+.btn-tool:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-tool.uv.active { border-color: var(--uv); color: #cc99ff; background: rgba(150,100,255,0.1); box-shadow: 0 0 12px rgba(150,100,255,0.2); }
+.btn-tool.eu3.active { border-color: #ff6644; color: #ffaa88; background: rgba(255,100,60,0.1); box-shadow: 0 0 12px rgba(255,100,60,0.2); }
+.btn-tool.al3.active { border-color: #aaa; color: #ddd; background: rgba(150,150,150,0.12); }
+.btn-tool.switch.active { border-color: var(--codex-green); color: #aaffcc; background: rgba(51,255,136,0.08); }
+
+#flow-bar {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 11px; color: var(--text-dim);
+}
+.flow-step {
+  padding: 3px 12px; border-radius: 8px; background: var(--surface);
+  border: 1px solid var(--border); transition: all 0.3s;
+}
+.flow-step.current { color: var(--accent); border-color: var(--accent); box-shadow: 0 0 8px rgba(100,170,255,0.15); }
+.flow-arrow { color: #334455; }
+
+/* ===== DeepSeek popup ===== */
+#ds-popup {
+  position: absolute; z-index: 100;
+  background: var(--surface); border: 1px solid var(--warn);
+  border-radius: 10px; padding: 14px; width: 260px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,136,68,0.1);
+  display: none; font-size: 12px; line-height: 1.6;
+  backdrop-filter: blur(8px);
+}
+#ds-popup.show { display: block; animation: popIn 0.2s ease; }
+@keyframes popIn { from { opacity:0; transform: scale(0.92); } to { opacity:1; transform: scale(1); } }
+#ds-popup-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,136,68,0.2);
+}
+#ds-popup-title { font-size: 13px; font-weight: 700; color: #ffaa55; }
+#ds-popup-close { cursor: pointer; color: var(--text-dim); font-size: 16px; line-height: 1; }
+#ds-popup-close:hover { color: var(--warn); }
+#ds-popup-body { color: var(--text); }
+#ds-popup-body p { margin-bottom: 4px; }
+#ds-popup-body .ds-note { color: var(--text-dim); font-size: 11px; margin-top: 6px; }
+#ds-popup-svg { display: block; margin: 8px auto; }
+
+/* UV overlay hint on map */
+#map-hint {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  font-size: 13px; color: rgba(255,255,255,0.4); text-align: center;
+  pointer-events: none; z-index: 5;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  transition: opacity 0.5s;
+}
+
+@media (max-width: 760px) {
+  #main { flex-direction: column; }
+  #right-panel { width: 100%; flex-direction: row; flex-wrap: wrap; gap: 6px; padding: 6px; max-height: 200px; }
+  #right-panel .panel-card { flex: 1; min-width: 140px; }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>实战演练：荧光加解密</h1>
+  <div id="scene-badge">场景 1/4：加密存储</div>
+</div>
+
+<div id="main">
+  <div id="map-container">
+    <canvas id="tactical-canvas"></canvas>
+    <div id="map-hint">自然光下完全透明 — 情报隐形存储</div>
+    <div id="ds-popup">
+      <div id="ds-popup-head">
+        <span id="ds-popup-title">DeepSeek 机理</span>
+        <span id="ds-popup-close">&times;</span>
+      </div>
+      <div id="ds-popup-body"></div>
+    </div>
+  </div>
+
+  <div id="right-panel">
+    <div class="panel-card" id="codex-panel">
+      <h3>Codex 密码引擎 <span class="engine-tag">编译</span></h3>
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px;">荧光色卡 &rarr; 二进制 &rarr; 明文</div>
+      <div id="codex-binary">— — — — — —</div>
+      <div id="codex-text">等待密钥解密...</div>
+      <div id="codex-status">引擎锁定</div>
+    </div>
+
+    <div class="panel-card">
+      <h3>DeepSeek 交互答疑 <span class="engine-tag">机理</span></h3>
+      <div id="ds-hint">点击图纸上的荧光点阵或空白区域，查看分子层面反应原理</div>
+    </div>
+
+    <div class="panel-card" id="legend-card">
+      <h3>色卡编码规则</h3>
+      <div id="color-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--red-fl);box-shadow:0 0 8px var(--red-fl);"></div><span>红 = 1</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green-fl);box-shadow:0 0 8px var(--green-fl);"></div><span>绿 = 0</span></div>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-dim);line-height:1.6;">
+        底物A(香豆素-3-羧酸)+Eu<sup>3+</sup> &rarr; 红光 &rarr; 1<br>
+        底物B(7-二乙氨基-香豆素-3-羧酸)+Eu<sup>3+</sup> &rarr; 黄绿光 &rarr; 0
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="footer">
+  <div id="controls">
+    <button class="btn-tool uv" id="btn-uv" onclick="toggleUV()">UV灯 365nm</button>
+    <button class="btn-tool eu3" id="btn-eu3" onclick="addEu3()" disabled>滴加 Eu³⁺ 密钥</button>
+    <button class="btn-tool al3" id="btn-al3" onclick="addAl3()" disabled>Al³⁺ 销毁试剂</button>
+    <button class="btn-tool switch" id="btn-switch" onclick="switchSubstrate()" disabled>更换编码底物</button>
+    <button class="btn-tool" id="btn-reset" onclick="resetAll()">重置演练</button>
+  </div>
+  <div id="flow-bar">
+    <span class="flow-step current" id="flow-1">隐形加密存储</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step" id="flow-2">紫外密钥解密</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step" id="flow-3">离子不可逆销毁</span>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 核心数据：密文色卡二进制编码体系
+// ============================================================
+const binaryStr = '100101100011'; // 12 bits
+const bits = binaryStr.split('').map(Number);
+
+const messages = {
+  standard: {
+    binary: '1001 0110 0011',
+    text: '03:00 方位角130\u00b0\n突击分队机动\n坐标: N48.32\u00b0 E38.15\u00b0'
+  },
+  inverted: {
+    binary: '0110 1001 1100',
+    text: '弹药编号 XM-2048\n装备身份标识\n批次: 2026-07-第3批'
+  }
+};
+
+// ============================================================
+// 全局状态
+// ============================================================
+let uvOn = false;
+let eu3Added = false;
+let al3Added = false;
+let inverted = false;
+let codexDone = false;
+let uvSweep = 0;
+let eu3Progress = 0;
+let al3Progress = 0;
+let sprayParticles = [];
+let needsRedraw = true;
+let lastTime = performance.now();
+
+// ============================================================
+// Canvas 初始化
+// ============================================================
+const canvas = document.getElementById('tactical-canvas');
+const ctx = canvas.getContext('2d');
+const mapContainer = document.getElementById('map-container');
+let cw = 0, ch = 0, dpr = 1;
+
+function resize() {
+  const rect = mapContainer.getBoundingClientRect();
+  const maxW = rect.width - 24;
+  const maxH = rect.height - 24;
+  const aspect = 4 / 3;
+  let w, h;
+  if (maxW / aspect <= maxH) { w = maxW; h = maxW / aspect; }
+  else { h = maxH; w = maxH * aspect; }
+  w = Math.max(320, w); h = Math.max(240, h);
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cw = w; ch = h;
+  needsRedraw = true;
+}
+window.addEventListener('resize', resize);
+
+// ============================================================
+// 点阵定义 (4列 x 3行 = 12 dots)
+// ============================================================
+const dotGrid = [];
+for (let row = 0; row < 3; row++) {
+  for (let col = 0; col < 4; col++) {
+    const idx = row * 4 + col;
+    dotGrid.push({
+      x: 0.20 + col * 0.20,
+      y: 0.25 + row * 0.22,
+      bit: bits[idx],
+      radius: 16,
+      state: 'hidden',   // hidden | blue | red | green | faded
+      glow: 0,
+      eu3Delay: idx * 0.06,
+    });
+  }
+}
+
+// ============================================================
+// 绘制：背景（战术图纸）
+// ============================================================
+function drawBackground() {
+  // 羊皮纸底色
+  const grad = ctx.createLinearGradient(0, 0, 0, ch);
+  grad.addColorStop(0, '#ece3cc');
+  grad.addColorStop(0.5, '#e2d8bc');
+  grad.addColorStop(1, '#d4c8a8');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, cw, ch);
+
+  // 纹理噪点
+  ctx.fillStyle = 'rgba(120,100,60,0.03)';
+  for (let i = 0; i < 200; i++) {
+    ctx.fillRect(Math.random()*cw, Math.random()*ch, 1, 1);
+  }
+
+  const gridSize = Math.max(30, cw / 16);
+  // 细网格
+  ctx.strokeStyle = 'rgba(80,60,40,0.08)';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x <= cw; x += gridSize) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke();
+  }
+  for (let y = 0; y <= ch; y += gridSize) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke();
+  }
+  // 主网格
+  ctx.strokeStyle = 'rgba(80,60,40,0.22)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= cw; x += gridSize * 4) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke();
+  }
+  for (let y = 0; y <= ch; y += gridSize * 4) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke();
+  }
+  // 坐标标签
+  ctx.fillStyle = 'rgba(80,60,40,0.35)';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'left';
+  const cols = 'ABCDEFGH';
+  for (let i = 0; i <= Math.floor(cw / (gridSize*4)); i++) {
+    ctx.fillText(cols[i] || '?', i * gridSize * 4 + 4, 12);
+  }
+  for (let i = 0; i <= Math.floor(ch / (gridSize*4)); i++) {
+    ctx.fillText(String(i * 10), 4, i * gridSize * 4 + 14);
+  }
+  // 罗盘
+  const cx = cw * 0.90, cy = ch * 0.10, r = 16;
+  ctx.strokeStyle = 'rgba(80,60,40,0.25)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = 'rgba(80,60,40,0.4)';
+  ctx.font = 'bold 9px serif'; ctx.textAlign = 'center';
+  ctx.fillText('N', cx, cy - r - 3);
+  ctx.fillText('S', cx, cy + r + 9);
+  ctx.fillText('W', cx - r - 6, cy + 3);
+  ctx.fillText('E', cx + r + 6, cy + 3);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r * 0.7); ctx.lineTo(cx - 4, cy + 2);
+  ctx.lineTo(cx + 4, cy + 2); ctx.closePath();
+  ctx.fillStyle = 'rgba(140,50,30,0.35)'; ctx.fill();
+  // 距离环
+  ctx.strokeStyle = 'rgba(80,60,40,0.08)';
+  ctx.lineWidth = 0.5;
+  for (let i = 1; i <= 4; i++) {
+    ctx.beginPath();
+    ctx.arc(cw * 0.28, ch * 0.58, i * (cw * 0.06), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // 标题印章
+  ctx.fillStyle = 'rgba(120,40,30,0.18)';
+  ctx.font = 'bold 13px serif'; ctx.textAlign = 'center';
+  ctx.fillText('— 战 术 指 令 图 纸 —', cw / 2, ch - 10);
+  // 日期戳
+  ctx.fillStyle = 'rgba(80,60,40,0.2)';
+  ctx.font = '9px monospace'; ctx.textAlign = 'right';
+  ctx.fillText('CLASSIFIED // TOP SECRET', cw - 8, ch - 10);
+}
+
+// ============================================================
+// 绘制：荧光点阵
+// ============================================================
+function drawDots() {
+  dotGrid.forEach(dot => {
+    if (dot.state === 'hidden' || dot.state === 'faded') return;
+    const px = dot.x * cw, py = dot.y * ch;
+    const r = dot.radius;
+    let color;
+    if (dot.state === 'blue') color = [85, 102, 255];
+    else if (dot.state === 'red') color = [255, 51, 68];
+    else if (dot.state === 'green') color = [68, 221, 85];
+    else return;
+    const [cr, cg, cb] = color;
+    const glowR = r * 3 * dot.glow;
+    // 外光晕
+    if (glowR > 1) {
+      const g = ctx.createRadialGradient(px, py, 0, px, py, glowR);
+      g.addColorStop(0, `rgba(${cr},${cg},${cb},${0.7 * dot.glow})`);
+      g.addColorStop(0.4, `rgba(${cr},${cg},${cb},${0.25 * dot.glow})`);
+      g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(px, py, glowR, 0, Math.PI * 2); ctx.fill();
+    }
+    // 核心点
+    ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+    ctx.beginPath(); ctx.arc(px, py, r * 0.45, 0, Math.PI * 2); ctx.fill();
+    // 亮核
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath(); ctx.arc(px - r*0.12, py - r*0.12, r * 0.15, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
+// ============================================================
+// 绘制：UV 紫外光扫过
+// ============================================================
+function drawUVSweep() {
+  if (!uvOn) return;
+  if (uvSweep < 1) {
+    const bandX = uvSweep * cw;
+    const bandW = cw * 0.22;
+    // 已扫过区域
+    const sweptGrad = ctx.createLinearGradient(0, 0, bandX, 0);
+    sweptGrad.addColorStop(0, 'rgba(80,40,120,0.10)');
+    sweptGrad.addColorStop(1, 'rgba(100,60,160,0.14)');
+    ctx.fillStyle = sweptGrad;
+    ctx.fillRect(0, 0, bandX, ch);
+    // 光束前沿
+    const leadGrad = ctx.createLinearGradient(bandX - bandW, 0, bandX, 0);
+    leadGrad.addColorStop(0, 'rgba(120,80,200,0)');
+    leadGrad.addColorStop(0.6, 'rgba(140,100,230,0.2)');
+    leadGrad.addColorStop(1, 'rgba(160,120,255,0.4)');
+    ctx.fillStyle = leadGrad;
+    ctx.fillRect(bandX - bandW, 0, bandW, ch);
+    // 光束线
+    ctx.strokeStyle = 'rgba(180,140,255,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(bandX, 0); ctx.lineTo(bandX, ch); ctx.stroke();
+  } else {
+    // 全图 UV 底色
+    ctx.fillStyle = 'rgba(80,40,120,0.12)';
+    ctx.fillRect(0, 0, cw, ch);
+  }
+}
+
+// ============================================================
+// 绘制：Al³⁺ 喷淋
+// ============================================================
+function drawSpray() {
+  if (al3Progress <= 0) return;
+  // 喷淋粒子
+  sprayParticles.forEach(p => {
+    ctx.fillStyle = `rgba(200,200,210,${p.alpha})`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  });
+  // 白雾覆盖
+  if (al3Progress > 0.1) {
+    ctx.fillStyle = `rgba(240,235,220,${Math.min(0.75, al3Progress * 0.8)})`;
+    ctx.fillRect(0, 0, cw, ch);
+  }
+}
+
+// ============================================================
+// 更新逻辑
+// ============================================================
+function update(dt) {
+  // UV 扫过
+  if (uvOn && uvSweep < 1) {
+    uvSweep = Math.min(1, uvSweep + dt * 0.55);
+    needsRedraw = true;
+    if (uvSweep >= 1) {
+      dotGrid.forEach((dot, i) => {
+        dot._revealTimer = (dot._revealTimer || 0) + dt;
+        if (dot._revealTimer > i * 0.08 && dot.state === 'hidden') {
+          dot.state = 'blue';
+          dot.glow = 0;
+          dot._revealTimer = 0;
+        }
+      });
+    }
+  }
+  // 蓝色点光晕增长
+  dotGrid.forEach(dot => {
+    if (dot.state === 'blue' && dot.glow < 1) {
+      dot.glow = Math.min(1, dot.glow + dt * 2.5);
+      needsRedraw = true;
+    }
+    if ((dot.state === 'red' || dot.state === 'green') && dot.glow < 1) {
+      dot.glow = Math.min(1, dot.glow + dt * 3.5);
+      needsRedraw = true;
+    }
+  });
+  // Eu³⁺ 分化
+  if (eu3Added && eu3Progress < 1) {
+    eu3Progress = Math.min(1, eu3Progress + dt * 0.7);
+    needsRedraw = true;
+    dotGrid.forEach(dot => {
+      if (eu3Progress > dot.eu3Delay && dot.state === 'blue') {
+        const actualBit = inverted ? 1 - dot.bit : dot.bit;
+        dot.state = actualBit === 1 ? 'red' : 'green';
+        dot.glow = 0;
+      }
+    });
+    if (eu3Progress >= 1 && !codexDone) {
+      codexDone = true;
+      runCodex();
+    }
+  }
+  // Al³⁺ 销毁
+  if (al3Added && al3Progress < 1) {
+    al3Progress = Math.min(1, al3Progress + dt * 0.5);
+    needsRedraw = true;
+    // 生成喷淋粒子
+    if (al3Progress < 0.85 && Math.random() < 0.6) {
+      sprayParticles.push({
+        x: Math.random() * cw, y: -5,
+        r: 1.5 + Math.random() * 2.5,
+        vy: 40 + Math.random() * 80,
+        alpha: 0.3 + Math.random() * 0.25,
+        life: 2.5,
+      });
+    }
+    // 荧光褪色
+    dotGrid.forEach(dot => {
+      if (dot.state !== 'hidden' && dot.state !== 'faded') {
+        dot.glow = Math.max(0, dot.glow - dt * 2);
+        if (dot.glow <= 0.02 && al3Progress > 0.35) dot.state = 'faded';
+      }
+    });
+    // 粒子更新
+    sprayParticles = sprayParticles.filter(p => {
+      p.y += p.vy * dt; p.life -= dt;
+      return p.y < ch + 10 && p.life > 0;
+    });
+    if (al3Progress >= 1) {
+      dotGrid.forEach(dot => { dot.state = 'faded'; dot.glow = 0; });
+      lockCodex();
+    }
+  }
+}
+
+// ============================================================
+// 渲染主循环
+// ============================================================
+function render() {
+  ctx.clearRect(0, 0, cw, ch);
+  drawBackground();
+  drawDots();
+  drawUVSweep();
+  drawSpray();
+}
+
+function loop(t) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((t - lastTime) / 1000, 0.05);
+  lastTime = t;
+  update(dt);
+  const animating = uvSweep > 0 && uvSweep < 1
+    || (eu3Progress > 0 && eu3Progress < 1)
+    || (al3Progress > 0 && al3Progress < 1)
+    || sprayParticles.length > 0
+    || dotGrid.some(d => d.glow > 0 && d.glow < 1);
+  if (needsRedraw || animating) {
+    render();
+    needsRedraw = false;
+  }
+}
+
+// ============================================================
+// 交互：按钮控制
+// ============================================================
+function toggleUV() {
+  if (al3Added) return;
+  uvOn = !uvOn;
+  document.getElementById('btn-uv').classList.toggle('active', uvOn);
+  const hint = document.getElementById('map-hint');
+  hint.style.opacity = uvOn ? '0' : '1';
+  if (uvOn) {
+    uvSweep = 0;
+    document.getElementById('btn-eu3').disabled = false;
+    setScene(2);
+    setFlow(2);
+    showDSHint('UV灯开启 — 365nm紫外光激发香豆素共轭体系，发射本征蓝紫色荧光（斯托克斯位移）');
+  } else {
+    dotGrid.forEach(dot => {
+      if (dot.state === 'blue') { dot.state = 'hidden'; dot.glow = 0; }
+    });
+    if (!eu3Added) {
+      document.getElementById('btn-eu3').disabled = true;
+      setScene(1); setFlow(1);
+      hint.style.opacity = '1';
+    }
+  }
+  needsRedraw = true;
+}
+
+function addEu3() {
+  if (!uvOn || eu3Added || al3Added) return;
+  eu3Added = true;
+  eu3Progress = 0;
+  codexDone = false;
+  document.getElementById('btn-eu3').classList.add('active');
+  document.getElementById('btn-al3').disabled = false;
+  document.getElementById('btn-switch').disabled = false;
+  setScene(3);
+  showDSHint('Eu³⁺密钥滴加 — 稀土天线效应：能量从香豆素配体传递至Eu³⁺，发射特征红/绿荧光');
+}
+
+function addAl3() {
+  if (!eu3Added || al3Added) return;
+  al3Added = true;
+  al3Progress = 0;
+  sprayParticles = [];
+  document.getElementById('btn-al3').classList.add('active');
+  document.getElementById('btn-uv').disabled = true;
+  document.getElementById('btn-eu3').disabled = true;
+  document.getElementById('btn-switch').disabled = true;
+  setScene(4);
+  setFlow(3);
+  showDSHint('Al³⁺销毁试剂 — 铝离子与香豆素羧基/羟基配位，破坏共轭发光骨架，荧光永久猝灭');
+}
+
+function switchSubstrate() {
+  if (!eu3Added || al3Added) return;
+  inverted = !inverted;
+  // 重置点阵为蓝色，重新分化
+  dotGrid.forEach(dot => {
+    if (dot.state === 'red' || dot.state === 'green') {
+      dot.state = 'blue'; dot.glow = 1;
+    }
+  });
+  eu3Progress = 0;
+  codexDone = false;
+  // 清空 Codex
+  document.getElementById('codex-binary').textContent = '— — — — — —';
+  document.getElementById('codex-text').textContent = '等待密钥解密...';
+  document.getElementById('codex-status').textContent = '引擎锁定';
+  document.getElementById('codex-status').className = '';
+  document.getElementById('codex-panel').classList.add('locked');
+  document.getElementById('codex-panel').classList.remove('locked');
+  // 更新色卡
+  const legend = document.getElementById('color-legend');
+  if (inverted) {
+    legend.innerHTML =
+      '<div class="legend-item"><div class="legend-dot" style="background:var(--red-fl);box-shadow:0 0 8px var(--red-fl);"></div><span>红 = 0</span></div>' +
+      '<div class="legend-item"><div class="legend-dot" style="background:var(--green-fl);box-shadow:0 0 8px var(--green-fl);"></div><span>绿 = 1</span></div>';
+  } else {
+    legend.innerHTML =
+      '<div class="legend-item"><div class="legend-dot" style="background:var(--red-fl);box-shadow:0 0 8px var(--red-fl);"></div><span>红 = 1</span></div>' +
+      '<div class="legend-item"><div class="legend-dot" style="background:var(--green-fl);box-shadow:0 0 8px var(--green-fl);"></div><span>绿 = 0</span></div>';
+  }
+  document.getElementById('btn-switch').classList.toggle('active', inverted);
+  showDSHint(inverted
+    ? '底物组已切换 — 编码规则反转（红=0, 绿=1），Codex 重新编译独立密码体系'
+    : '底物组已切换 — 编码规则恢复标准（红=1, 绿=0）');
+  needsRedraw = true;
+}
+
+function resetAll() {
+  uvOn = false; eu3Added = false; al3Added = false; inverted = false;
+  codexDone = false; uvSweep = 0; eu3Progress = 0; al3Progress = 0;
+  sprayParticles = [];
+  dotGrid.forEach(dot => { dot.state = 'hidden'; dot.glow = 0; dot._revealTimer = 0; });
+  document.getElementById('btn-uv').classList.remove('active');
+  document.getElementById('btn-eu3').classList.remove('active');
+  document.getElementById('btn-al3').classList.remove('active');
+  document.getElementById('btn-switch').classList.remove('active');
+  document.getElementById('btn-uv').disabled = false;
+  document.getElementById('btn-eu3').disabled = true;
+  document.getElementById('btn-al3').disabled = true;
+  document.getElementById('btn-switch').disabled = true;
+  document.getElementById('codex-binary').textContent = '— — — — — —';
+  document.getElementById('codex-text').textContent = '等待密钥解密...';
+  document.getElementById('codex-status').textContent = '引擎锁定';
+  document.getElementById('codex-status').className = '';
+  document.getElementById('codex-panel').classList.remove('locked');
+  // 恢复色卡
+  document.getElementById('color-legend').innerHTML =
+    '<div class="legend-item"><div class="legend-dot" style="background:var(--red-fl);box-shadow:0 0 8px var(--red-fl);"></div><span>红 = 1</span></div>' +
+    '<div class="legend-item"><div class="legend-dot" style="background:var(--green-fl);box-shadow:0 0 8px var(--green-fl);"></div><span>绿 = 0</span></div>';
+  document.getElementById('map-hint').style.opacity = '1';
+  setScene(1); setFlow(1);
+  showDSHint('点击图纸上的荧光点阵或空白区域，查看分子层面反应原理');
+  hidePopup();
+  needsRedraw = true;
+}
+
+// ============================================================
+// Codex 密码引擎
+// ============================================================
+function runCodex() {
+  const msg = inverted ? messages.inverted : messages.standard;
+  const panel = document.getElementById('codex-panel');
+  panel.classList.remove('locked');
+  const binEl = document.getElementById('codex-binary');
+  const textEl = document.getElementById('codex-text');
+  const statusEl = document.getElementById('codex-status');
+  statusEl.className = 'decoding';
+  statusEl.textContent = '正在识别荧光点阵...';
+  binEl.textContent = ''; textEl.textContent = '';
+  // 逐字打出二进制
+  let bi = 0;
+  const fullBin = msg.binary;
+  const typeBin = setInterval(() => {
+    if (bi < fullBin.length) {
+      binEl.textContent += fullBin[bi];
+      bi++;
+    } else {
+      clearInterval(typeBin);
+      statusEl.textContent = '翻译中...';
+      // 逐字打出明文
+      let ti = 0;
+      const typeText = setInterval(() => {
+        if (ti < msg.text.length) {
+          textEl.textContent += msg.text[ti];
+          ti++;
+        } else {
+          clearInterval(typeText);
+          statusEl.textContent = '翻译完成 \u2713';
+        }
+      }, 25);
+    }
+  }, 70);
+}
+
+function lockCodex() {
+  const panel = document.getElementById('codex-panel');
+  panel.classList.add('locked');
+  const status = document.getElementById('codex-status');
+  status.className = 'error';
+  status.textContent = '\u26a0 荧光共轭体系被Al\u00b3\u207a破坏，密文永久销毁';
+}
+
+// ============================================================
+// DeepSeek 机理弹窗
+// ============================================================
+const popup = document.getElementById('ds-popup');
+const popupBody = document.getElementById('ds-popup-body');
+const popupTitleEl = document.getElementById('ds-popup-title');
+
+document.getElementById('ds-popup-close').addEventListener('click', hidePopup);
+
+function hidePopup() { popup.classList.remove('show'); }
+
+function showPopup(title, html, clickX, clickY) {
+  popupTitleEl.textContent = title;
+  popupBody.innerHTML = html;
+  popup.classList.add('show');
+  // 定位
+  const containerRect = mapContainer.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  let px = clickX - containerRect.left + 16;
+  let py = clickY - containerRect.top - 10;
+  const pw = 260, ph = popup.offsetHeight || 200;
+  if (px + pw > containerRect.width) px = clickX - containerRect.left - pw - 16;
+  if (py + ph > containerRect.height) py = containerRect.height - ph - 10;
+  if (py < 5) py = 5;
+  popup.style.left = px + 'px';
+  popup.style.top = py + 'px';
+}
+
+// 点击 Canvas
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const nx = (e.clientX - rect.left) / rect.width;
+  const ny = (e.clientY - rect.top) / rect.height;
+  // 命中检测
+  let hit = null;
+  dotGrid.forEach(dot => {
+    if (dot.state === 'hidden' || dot.state === 'faded') return;
+    const dx = nx - dot.x, dy = ny - dot.y;
+    if (Math.sqrt(dx*dx + dy*dy) < 0.04) hit = dot;
+  });
+  if (hit) {
+    showDotMechanism(hit, e.clientX, e.clientY);
+  } else {
+    // 空白区域
+    if (al3Added && al3Progress >= 1) {
+      showQuenchingMechanism(e.clientX, e.clientY);
+    } else if (!uvOn) {
+      showInvisibleMechanism(e.clientX, e.clientY);
+    } else if (uvOn && !eu3Added) {
+      showStokesGeneral(e.clientX, e.clientY);
+    }
+  }
+});
+
+function showDotMechanism(dot, cx, cy) {
+  let title, body;
+  if (dot.state === 'blue') {
+    title = '斯托克斯位移';
+    body = `
+      <p>紫外光(350nm)激发 &rarr; 电子从 S\u2080 跃迁至 S\u2081</p>
+      <p>部分能量以热耗散 &rarr; 电子回落至 S\u2080</p>
+      <p>发射蓝紫色荧光(420nm)，波长红移</p>
+      <svg id="ds-popup-svg" width="220" height="70" viewBox="0 0 220 70">
+        <line x1="20" y1="55" x2="200" y2="55" stroke="#4488aa" stroke-width="2"/>
+        <line x1="20" y1="15" x2="200" y2="15" stroke="#ff8844" stroke-width="2"/>
+        <text x="4" y="58" fill="#4488aa" font-size="9">S\u2080</text>
+        <text x="4" y="18" fill="#ff8844" font-size="9">S\u2081</text>
+        <line x1="70" y1="54" x2="70" y2="17" stroke="#9966ff" stroke-width="2" marker-end="url(#auv)"/>
+        <text x="78" y="38" fill="#cc99ff" font-size="9">UV 350nm</text>
+        <line x1="150" y1="16" x2="150" y2="53" stroke="#5566ff" stroke-width="2" marker-end="url(#afl)"/>
+        <text x="158" y="38" fill="#5566ff" font-size="9">荧光 420nm</text>
+        <defs>
+          <marker id="auv" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <polygon points="0,0 6,3 0,6" fill="#9966ff"/>
+          </marker>
+          <marker id="afl" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <polygon points="0,0 6,3 0,6" fill="#5566ff"/>
+          </marker>
+        </defs>
+      </svg>
+      <p class="ds-note">仅紫外照射无稀土密钥，点阵无红绿区分<br>Codex引擎锁定，无法翻译二进制指令</p>`;
+  } else if (dot.state === 'red' || dot.state === 'green') {
+    const isRed = dot.state === 'red';
+    const substrate = isRed ? '底物A：香豆素-3-羧酸' : '底物B：7-二乙氨基-香豆素-3-羧酸';
+    const color = isRed ? '红' : '黄绿';
+    const cval = isRed ? '#ff3344' : '#44dd55';
+    title = 'Eu\u00b3\u207a 天线效应';
+    body = `
+      <p style="color:${cval};font-weight:700;">${substrate}</p>
+      <p>香豆素配体吸收紫外光 &rarr; 能量传递至 Eu\u00b3\u207a</p>
+      <p>Eu\u00b3\u207a 发射特征${color}色荧光</p>
+      <svg id="ds-popup-svg" width="200" height="60" viewBox="0 0 200 60">
+        <circle cx="40" cy="30" r="14" fill="rgba(85,102,255,0.2)" stroke="#5566ff" stroke-width="1.5"/>
+        <text x="40" y="34" text-anchor="middle" fill="#5566ff" font-size="8">配体</text>
+        <path d="M58 30 L92 30" stroke="#ffaa44" stroke-width="2" marker-end="url(#aen)" stroke-dasharray="3,2"/>
+        <text x="75" y="24" text-anchor="middle" fill="#ffaa44" font-size="8">能量</text>
+        <circle cx="160" cy="30" r="14" fill="${cval}33" stroke="${cval}" stroke-width="1.5"/>
+        <text x="160" y="34" text-anchor="middle" fill="${cval}" font-size="8">Eu\u00b3\u207a</text>
+        <path d="M175 20 Q185 10 190 18" stroke="${cval}" stroke-width="1.5" fill="none" marker-end="url(#afl2)"/>
+        <text x="185" y="12" fill="${cval}" font-size="7">${color}光</text>
+        <defs>
+          <marker id="aen" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <polygon points="0,0 6,3 0,6" fill="#ffaa44"/>
+          </marker>
+          <marker id="afl2" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
+            <polygon points="0,0 5,2.5 0,5" fill="${cval}"/>
+          </marker>
+        </defs>
+      </svg>
+      <p class="ds-note">${isRed ? '无取代基，发射红光' : '二乙氨基给电子，发射黄绿光'}<br>取代基调控能量传递与发射波长</p>`;
+  }
+  if (title) showPopup(title, body, cx, cy);
+}
+
+function showInvisibleMechanism(cx, cy) {
+  showPopup('隐形加密存储', `
+    <p>香豆素共轭体系在无紫外激发时不发射荧光</p>
+    <p>自然光下完全透明，规避目视侦察</p>
+    <p class="ds-note">对应俄乌战场明文通信泄露痛点<br>第一层加密：情报隐形存储</p>`, cx, cy);
+}
+
+function showStokesGeneral(cx, cy) {
+  showPopup('本征荧光（无密钥）', `
+    <p>365nm UV 激发香豆素共轭大\u03c0环</p>
+    <p>\u03c0&rarr;\u03c0* 跃迁后辐射回落，发射蓝紫色本征荧光</p>
+    <p class="ds-note">所有点阵呈统一蓝紫色，无法区分0/1<br>敌方仅持紫外设备，无法破译完整情报</p>`, cx, cy);
+}
+
+function showQuenchingMechanism(cx, cy) {
+  showPopup('Al\u00b3\u207a 配位猝灭', `
+    <p>Al\u00b3\u207a 与香豆素羧基(-COOH)、羟基(-OH)配位</p>
+    <p>破坏共轭发光骨架，能量传递通道阻断</p>
+    <svg id="ds-popup-svg" width="200" height="55" viewBox="0 0 200 55">
+      <circle cx="50" cy="28" r="12" fill="rgba(255,51,68,0.15)" stroke="#ff3344" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="50" y="31" text-anchor="middle" fill="#ff3344" font-size="8">共轭环</text>
+      <line x1="65" y1="28" x2="95" y2="28" stroke="#aaa" stroke-width="1.5"/>
+      <text x="80" y="23" text-anchor="middle" fill="#aaa" font-size="7">\u00d7</text>
+      <circle cx="150" cy="28" r="12" fill="rgba(170,170,170,0.15)" stroke="#aaa" stroke-width="1.5"/>
+      <text x="150" y="31" text-anchor="middle" fill="#aaa" font-size="8">Al\u00b3\u207a</text>
+      <text x="150" y="48" text-anchor="middle" fill="#666" font-size="7">配位破坏</text>
+    </svg>
+    <p class="ds-note" style="color:var(--warn);">荧光永久猝灭，密文不可逆销毁<br>杜绝敌方缴获图纸逆向复刻</p>`, cx, cy);
+}
+
+// ============================================================
+// UI 辅助
+// ============================================================
+function setScene(n) {
+  const names = { 1:'加密存储', 2:'UV显形', 3:'Eu\u00b3\u207a解密', 4:'Al\u00b3\u207a销毁' };
+  document.getElementById('scene-badge').textContent = '场景 ' + n + '/4：' + (names[n] || '');
+}
+function setFlow(n) {
+  for (let i = 1; i <= 3; i++)
+    document.getElementById('flow-' + i).classList.toggle('current', i === n);
+}
+function showDSHint(text) {
+  document.getElementById('ds-hint').textContent = text;
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+resize();
+render();
+requestAnimationFrame(loop);
+console.log('荧光加解密交互系统已就绪');
+</script>
+</body>
+</html>
