@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基于AIE分子的96孔板荧光加解密系统</title>
+<style>
+:root {
+  --bg: #0a0f1c;
+  --surface: rgba(20,30,50,0.85);
+  --surface-2: rgba(30,42,62,0.7);
+  --border: rgba(100,140,200,0.18);
+  --text: #d6dde8;
+  --text-dim: #7a89a0;
+  --accent: #4d8bff;
+  --green: #44ee66;
+  --blue: #4499ff;
+  --red: #ff4455;
+  --warn: #ff9944;
+  --gold: #ffaa44;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  height: 100vh; width: 100vw; overflow: hidden;
+  color: var(--text); display: flex; flex-direction: column; user-select: none;
+}
+#header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 24px; flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(15,22,38,0.96), rgba(10,15,28,0.9));
+  border-bottom: 1px solid var(--border); z-index: 10;
+}
+#header h1 { font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+#header .icon-box {
+  width: 30px; height: 30px; border-radius: 6px;
+  background: linear-gradient(135deg, #4d8bff, #4499ff);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 14px;
+}
+#header h2 { font-size: 13px; color: var(--text-dim); font-weight: 400; }
+
+#main { flex: 1; display: flex; min-height: 0; padding: 12px 20px; gap: 16px; }
+#canvas-area {
+  flex: 1; min-width: 0; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 12px;
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+#main-canvas { cursor: pointer; }
+
+#side-panel { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 4px; }
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px; transition: all 0.3s;
+}
+.panel.active { border-color: var(--accent); box-shadow: 0 0 16px rgba(77,139,255,0.15); }
+.panel h3 {
+  font-size: 12px; color: var(--accent); text-transform: uppercase;
+  letter-spacing: 1.5px; margin-bottom: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.phase-tag {
+  font-size: 10px; padding: 3px 10px; border-radius: 4px; font-weight: 600;
+  background: rgba(120,140,170,0.15); color: #aabbcc;
+}
+.phase-tag.enc { background: rgba(120,140,170,0.2); color: #aabbcc; }
+.phase-tag.uv  { background: rgba(100,150,220,0.25); color: #88bbff; }
+.phase-tag.loc { background: rgba(255,100,100,0.2); color: #ff8899; }
+.phase-tag.dec { background: rgba(68,238,102,0.2); color: #66ff88; }
+
+.panel-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; font-size: 13px; border-bottom: 1px dashed rgba(100,140,200,0.1);
+}
+.panel-row:last-child { border-bottom: none; }
+.panel-row .label { color: var(--text-dim); font-size: 11px; }
+.panel-row .value { font-weight: 600; font-size: 12px; }
+
+.mapping-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 8px;
+}
+.map-item {
+  text-align: center; padding: 6px 2px; border-radius: 6px;
+  background: rgba(20,30,50,0.5); border: 1px solid var(--border); font-size: 11px;
+}
+.map-item .m-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle;
+}
+.map-item .m-label { display: block; font-size: 9px; color: var(--text-dim); margin-top: 3px; }
+.d-s0 { background: rgba(60,70,90,0.5); }
+.d-s1 { background: rgba(68,238,102,0.15); border-color: rgba(68,238,102,0.3); }
+.d-s2 { background: rgba(68,153,255,0.15); border-color: rgba(68,153,255,0.3); }
+.d-s3 { background: rgba(255,68,85,0.15); border-color: rgba(255,68,85,0.3); }
+
+.decode-box {
+  margin-top: 8px; padding: 10px; border-radius: 8px;
+  background: rgba(68,238,102,0.06); border: 1px dashed rgba(68,238,102,0.25);
+  font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.8;
+  color: #66ff88; min-height: 40px;
+}
+
+.ds-hint {
+  font-size: 11px; color: var(--text-dim); line-height: 1.6;
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+}
+
+/* DeepSeek 右侧交互答疑面板 */
+#panel-ds { cursor: default; }
+#panel-ds .ds-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+#panel-ds .ds-brand {
+  font-size: 12px; font-weight: 700; color: #fff;
+  display: flex; align-items: center; gap: 6px;
+}
+#panel-ds .ds-brand::before {
+  content: ''; width: 4px; height: 14px; border-radius: 2px;
+  background: linear-gradient(180deg, #4d8bff, #4499ff);
+}
+#panel-ds .ds-tab {
+  font-size: 10px; padding: 3px 10px; border-radius: 4px;
+  background: rgba(77,139,255,0.15); color: #88bbff; font-weight: 600;
+}
+#panel-ds .ds-card {
+  background: rgba(18,26,42,0.95); border: 1px solid var(--border);
+  border-left: 3px solid var(--warn); border-radius: 8px;
+  padding: 12px; margin-bottom: 10px;
+  font-size: 12px; line-height: 1.7; color: var(--text);
+  transition: border-color 0.3s, opacity 0.3s;
+}
+#panel-ds .ds-card.dim { opacity: 0.55; }
+#panel-ds .ds-card .ds-card-title {
+  color: var(--warn); font-weight: 700; font-size: 12px;
+  margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+}
+#panel-ds .ds-card .ds-card-body p { margin-bottom: 5px; }
+#panel-ds .ds-card .ds-card-body .tag {
+  display: inline-block; padding: 1px 6px; border-radius: 4px;
+  font-size: 10px; margin-right: 4px; font-weight: 600;
+}
+#panel-ds .ds-card .ds-card-body .tag-red { background: rgba(255,68,85,0.15); color: #ff8899; }
+#panel-ds .ds-card .ds-card-body .tag-blue { background: rgba(125,109,255,0.15); color: #a49bff; }
+#panel-ds .rule-title {
+  font-size: 11px; font-weight: 700; color: #fff; margin: 10px 0 6px;
+}
+#panel-ds .rule-row {
+  display: flex; align-items: center; gap: 8px; font-size: 11px;
+  padding: 4px 0; color: var(--text-dim);
+}
+#panel-ds .rule-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+#panel-ds .rule-arrow { color: var(--text-dim); margin: 0 4px; }
+#panel-ds .ask-tip {
+  margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);
+  font-size: 10px; color: var(--text-dim); line-height: 1.5;
+}
+.expire-warning {
+  color: var(--warn); font-size: 11px; margin-top: 6px; padding: 6px 10px;
+  background: rgba(255,153,68,0.1); border-radius: 6px; display: none;
+}
+
+#footer {
+  flex-shrink: 0; padding: 12px 24px 16px;
+  background: rgba(8,12,22,0.85); border-top: 1px solid var(--border); z-index: 10;
+}
+#flow-steps {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; margin-bottom: 10px; font-size: 12px;
+}
+.flow-step {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 20px; background: var(--surface);
+  border: 1px solid var(--border); transition: all 0.25s; cursor: pointer;
+}
+.flow-step:hover { border-color: var(--accent); }
+.flow-step.current { background: rgba(77,139,255,0.15); border-color: var(--accent); color: #fff; }
+.flow-step .num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(100,150,200,0.15); display: flex; align-items: center;
+  justify-content: center; font-weight: 700; font-size: 11px;
+}
+.flow-step.current .num { background: var(--accent); color: #fff; }
+.flow-arrow { color: #4a5a70; font-size: 16px; }
+
+#controls { display: flex; gap: 10px; justify-content: center; }
+.btn-tool {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); padding: 8px 18px; border-radius: 8px;
+  cursor: pointer; font-size: 13px; font-family: inherit;
+  display: flex; align-items: center; gap: 6px;
+  transition: all 0.2s; font-weight: 500;
+}
+.btn-tool:hover:not(:disabled) { transform: translateY(-1px); }
+.btn-tool:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-primary { background: rgba(77,139,255,0.2); border-color: rgba(77,139,255,0.4); color: #88bbff; }
+.btn-primary:hover:not(:disabled) { background: rgba(77,139,255,0.3); box-shadow: 0 0 14px rgba(77,139,255,0.25); }
+.btn-danger { background: rgba(255,80,80,0.15); border-color: rgba(255,100,100,0.3); }
+.btn-danger:hover { background: rgba(200,60,60,0.25); }
+
+#ds-popup {
+  position: absolute; z-index: 100;
+  background: var(--surface); border: 1px solid var(--warn);
+  border-radius: 10px; padding: 14px; width: 280px;
+  box-shadow: 0 12px 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,153,68,0.15);
+  display: none; font-size: 12px; line-height: 1.7;
+  backdrop-filter: blur(12px); max-height: 75vh; overflow-y: auto;
+}
+#ds-popup.show { display: block; animation: popIn 0.2s ease; }
+@keyframes popIn { from { opacity:0; transform: scale(0.92); } to { opacity:1; transform: scale(1); } }
+#ds-popup-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px; padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,153,68,0.25);
+}
+#ds-popup-title { font-size: 13px; font-weight: 700; color: #ffaa55; }
+#ds-popup-close { cursor: pointer; color: var(--text-dim); font-size: 18px; line-height: 1; border: none; background: none; }
+#ds-popup-close:hover { color: var(--warn); }
+#ds-popup-body p { margin-bottom: 4px; }
+.ds-note { color: var(--text-dim); font-size: 11px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(100,140,200,0.15); }
+#ds-popup-svg { display: block; margin: 8px auto; max-width: 100%; }
+
+@media (max-width: 1000px) {
+  #main { flex-direction: column; }
+  #side-panel { width: 100%; max-height: 200px; flex-direction: row; flex-wrap: wrap; overflow-x: auto; }
+  #side-panel .panel { min-width: 200px; }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1><span class="icon-box">🔐</span>基于AIE分子的96孔板荧光加解密系统</h1>
+  <h2>四重随机密钥 · 全激发显色 · 红/蓝紫 二进制编码</h2>
+</div>
+
+<div id="main">
+  <div id="canvas-area">
+    <canvas id="main-canvas"></canvas>
+    <div id="ds-popup">
+      <div id="ds-popup-head">
+        <span id="ds-popup-title">DeepSeek 机理分析</span>
+        <button id="ds-popup-close">&times;</button>
+      </div>
+      <div id="ds-popup-body"></div>
+    </div>
+  </div>
+
+  <div id="side-panel">
+    <!-- 状态面板 -->
+    <div class="panel active" id="panel-state">
+      <h3>系统状态
+        <span class="phase-tag enc" id="phase-tag">就绪</span>
+      </h3>
+      <div class="panel-row">
+        <span class="label">加密信息</span>
+        <span class="value" id="info-msg">— 未加密 —</span>
+      </div>
+      <div class="panel-row">
+        <span class="label">加密时间</span>
+        <span class="value" id="info-time">—</span>
+      </div>
+      <div class="panel-row">
+        <span class="label">有效区域</span>
+        <span class="value" id="info-region">—</span>
+      </div>
+      <div class="panel-row">
+        <span class="label">读取方向</span>
+        <span class="value" id="info-direction">—</span>
+      </div>
+      <div class="panel-row">
+        <span class="label">有效孔数</span>
+        <span class="value" id="info-valid">—</span>
+      </div>
+      <div class="panel-row">
+        <span class="label">干扰孔数</span>
+        <span class="value" id="info-interference">—</span>
+      </div>
+      <div class="ds-hint" id="ds-hint">💡 点击「加密生成」开始96孔板AIE分子加解密演示</div>
+    </div>
+
+    <!-- DeepSeek 交互答疑面板 -->
+    <div class="panel" id="panel-ds">
+      <div class="ds-head">
+        <div class="ds-brand">DEEPSEEK 交互答疑</div>
+        <div class="ds-tab">机理</div>
+      </div>
+      <div class="ds-card" id="ds-card">
+        <div class="ds-card-title" id="ds-card-title">等待加密</div>
+        <div class="ds-card-body" id="ds-card-body">
+          <p>点击下方「🔒 加密生成」，随机布置 96 孔板 AIE 分子阵列。</p>
+          <p>加密后，孔内随机装载香豆素-3-羧酸（蓝紫=0）或 +Eu³⁺ 配合物（红=1）。</p>
+        </div>
+      </div>
+      <div class="rule-title">色卡编码规则</div>
+      <div class="rule-row">
+        <span class="rule-dot" style="background:#7d6dff;color:#7d6dff;"></span>
+        <span>蓝紫色荧光</span>
+        <span class="rule-arrow">→</span>
+        <span style="color:#a49bff;font-weight:600;">二进制 0</span>
+      </div>
+      <div class="rule-row">
+        <span class="rule-dot" style="background:#ff4455;color:#ff4455;"></span>
+        <span>红色荧光</span>
+        <span class="rule-arrow">→</span>
+        <span style="color:#ff8899;font-weight:600;">二进制 1</span>
+      </div>
+      <div class="ask-tip">
+        💡 点击 96 孔板任意孔 / 底部流程步骤 / 本面板，可展开更详细的机理弹窗。
+      </div>
+    </div>
+
+    <!-- 映射表 -->
+    <div class="panel" id="panel-mapping">
+      <h3>编码映射表（蓝紫=0，红=1）</h3>
+      <div class="mapping-grid" id="mapping-grid">
+        <div class="map-item" style="background:rgba(125,109,255,0.12);border-color:rgba(125,109,255,0.3);">
+          <span class="m-dot" style="background:#7d6dff"></span>蓝紫色<span class="m-label">= 二进制 0</span>
+        </div>
+        <div class="map-item" style="background:rgba(255,68,85,0.12);border-color:rgba(255,68,85,0.3);">
+          <span class="m-dot" style="background:#ff4455"></span>红色<span class="m-label">= 二进制 1</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 解密结果 -->
+    <div class="panel" id="panel-decode">
+      <h3>解密结果</h3>
+      <div class="decode-box" id="decode-result">— 尚未解密 —</div>
+      <div class="expire-warning" id="expire-warning">⚠️ 信息已失效</div>
+    </div>
+  </div>
+</div>
+
+<div id="footer">
+  <div id="flow-steps">
+    <div class="flow-step current" data-step="1">
+      <span class="num">1</span><span>加密生成：随机布置96孔板</span>
+    </div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" data-step="2">
+      <span class="num">2</span><span>UV照射：全板荧光显色</span>
+    </div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" data-step="3">
+      <span class="num">3</span><span>定位标记孔：识别有效区域</span>
+    </div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" data-step="4">
+      <span class="num">4</span><span>解码：读取红/蓝紫二进制</span>
+    </div>
+  </div>
+  <div id="controls">
+    <button class="btn-tool btn-primary" id="btn-encrypt" onclick="doEncrypt()">🔒 加密生成</button>
+    <button class="btn-tool" id="btn-uv" onclick="doUV()" disabled>💡 UV 365nm</button>
+    <button class="btn-tool" id="btn-locate" onclick="doLocate()" disabled>📍 定位标记</button>
+    <button class="btn-tool btn-primary" id="btn-decode" onclick="doDecode()" disabled>🔓 解码</button>
+    <button class="btn-tool btn-danger" id="btn-reset" onclick="doReset()">🔄 重置</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 96孔板 AIE 分子加密系统 — 完整配置
+// ============================================================
+const ROWS = 8;       // A-H
+const COLS = 12;      // 1-12
+const ROW_NAMES = ['A','B','C','D','E','F','G','H'];
+
+// AIE 荧光颜色 → 二进制编码
+// 0 = 蓝紫色（香豆素-3-羧酸本征荧光）→ 二进制 0
+// 1 = 红色（香豆素-3-羧酸 + Eu³⁺ 天线效应）→ 二进制 1
+const MOLECULE_TYPES = {
+  0: { name: '香豆素-3-羧酸（蓝紫色荧光）', short: '蓝紫', color: '#7d6dff', glow: 'rgba(125,109,255,0.7)',  desc: '蓝紫色荧光 → 0' },
+  1: { name: '香豆素-3-羧酸+Eu³⁺（红色荧光）', short: '红色', color: '#ff4455', glow: 'rgba(255,68,85,0.7)',  desc: '红色荧光 → 1' },
+};
+
+// 预定义可加密消息
+const PRESET_MESSAGES = [
+  '03:00 方位角130° 突击分队机动',
+  '弹药编号 XM-2048 部署坐标 N31.2/E121.4',
+  '装备识别码 EQ-775 已通过验证',
+  '7月21日 22:30 行动代号「萤火」执行',
+];
+
+// ============================================================
+// 全局状态
+// ============================================================
+let phase = 'ready';               // ready | encrypted | uv | located | decoded
+let encryptedData = null;          // 加密结果对象
+let showUV = false;                // 是否显示 UV 荧光
+let showMarkers = false;           // 是否高亮标记孔
+let showRegion = false;            // 是否显示有效区域
+let showDecode = false;            // 是否显示解码
+let uvIntensity = 0;               // UV 强度（0→1 平滑）
+let targetUVIntensity = 0;
+let highlightPulse = 0;            // 标记孔脉冲
+
+// Canvas
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d');
+const canvasArea = document.getElementById('canvas-area');
+let cw = 0, ch = 0;
+
+// 交互
+let hoveredWell = null;
+let lastTime = performance.now();
+
+// ============================================================
+// Canvas 尺寸与坐标计算
+// ============================================================
+const WELL_GAP_X = 52;
+const WELL_GAP_Y = 50;
+const WELL_R = 17;
+const PLATE_PAD_L = 36;   // 行标签区域
+const PLATE_PAD_T = 32;   // 列标签区域
+const PLATE_PAD_R = 20;
+const PLATE_PAD_B = 16;
+
+function getPlateOrigin() {
+  const pw = COLS * WELL_GAP_X;
+  const ph = ROWS * WELL_GAP_Y;
+  const totalW = PLATE_PAD_L + pw + PLATE_PAD_R;
+  const totalH = PLATE_PAD_T + ph + PLATE_PAD_B;
+  return {
+    ox: (cw - totalW) / 2 + PLATE_PAD_L,
+    oy: (ch - totalH) / 2 + PLATE_PAD_T,
+    pw, ph, totalW, totalH
+  };
+}
+
+function getWellCenter(row, col) {
+  const { ox, oy } = getPlateOrigin();
+  return {
+    x: ox + col * WELL_GAP_X + WELL_GAP_X / 2,
+    y: oy + row * WELL_GAP_Y + WELL_GAP_Y / 2
+  };
+}
+
+function resize() {
+  const rect = canvasArea.getBoundingClientRect();
+  const w = rect.width, h = rect.height;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cw = w; ch = h;
+}
+window.addEventListener('resize', resize);
+
+// ============================================================
+// 核心加密逻辑（JavaScript 实现，与 Python 一致）
+// ============================================================
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function generateMarkers() {
+  const direction = Math.random() < 0.5 ? '横向' : '纵向';
+
+  if (direction === '横向') {
+    const cols = 6, rows = 4;
+    const row = randInt(0, ROWS - rows);
+    const startCol = randInt(0, COLS - cols);
+    return {
+      markers: [[row, startCol], [row, startCol + cols - 1]],
+      direction,
+      extendParam: rows
+    };
+  } else {
+    const rows = 4, cols = 6;
+    const col = randInt(0, COLS - cols);
+    const startRow = randInt(0, ROWS - rows);
+    return {
+      markers: [[startRow, col], [startRow + rows - 1, col]],
+      direction,
+      extendParam: cols
+    };
+  }
+}
+
+function generateValidRegion(markers, direction, extendParam) {
+  const [[r1, c1], [r2, c2]] = markers;
+  const valid = [];
+  if (direction === '横向') {
+    for (let r = r1; r < r1 + extendParam; r++) {
+      for (let c = c1; c <= c2; c++) {
+        valid.push([r, c]);
+      }
+    }
+  } else {
+    for (let c = c1; c < c1 + extendParam; c++) {
+      for (let r = r1; r <= r2; r++) {
+        valid.push([r, c]);
+      }
+    }
+  }
+  return valid;
+}
+
+function generateStateCodes(validWells, markers) {
+  const stateCodes = {};
+  // 标记孔 = 红色(1)，醒目且不与信息位混淆（解码时跳过标记孔）
+  for (const m of markers) stateCodes[`${m[0]},${m[1]}`] = 1;
+  for (const [r, c] of validWells) {
+    if (!markers.some(([mr, mc]) => mr === r && mc === c)) {
+      stateCodes[`${r},${c}`] = randInt(0, 1);
+    }
+  }
+  return stateCodes;
+}
+
+function generateInterferenceCodes(validWells) {
+  const validSet = new Set(validWells.map(([r, c]) => `${r},${c}`));
+  const codes = {};
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!validSet.has(`${r},${c}`)) {
+        codes[`${r},${c}`] = randInt(0, 1);
+      }
+    }
+  }
+  return codes;
+}
+
+function getFullPlate() {
+  if (!encryptedData) return {};
+  return { ...encryptedData.stateCodes, ...encryptedData.interferenceCodes };
+}
+
+function wellToLabel(r, c) {
+  return ROW_NAMES[r] + (c + 1);
+}
+
+// ============================================================
+// 加密/解密
+// ============================================================
+function doEncrypt() {
+  const msg = PRESET_MESSAGES[Math.floor(Math.random() * PRESET_MESSAGES.length)];
+  const { markers, direction, extendParam } = generateMarkers();
+  const validWells = generateValidRegion(markers, direction, extendParam);
+  const stateCodes = generateStateCodes(validWells, markers);
+  const interferenceCodes = generateInterferenceCodes(validWells);
+
+  // 生成二进制密文（从有效信息孔中提取）
+  const binaryBits = [];
+  for (const [r, c] of validWells) {
+    const key = `${r},${c}`;
+    // 标记孔不计入二进制序列
+    if (!markers.some(([mr, mc]) => mr === r && mc === c)) {
+      binaryBits.push(stateCodes[key] !== undefined ? stateCodes[key] : 0);
+    }
+  }
+  const binaryStr = binaryBits.join('');
+
+  const now = new Date();
+  const expire = new Date(now.getTime() + 48 * 3600 * 1000);
+
+  encryptedData = {
+    message: msg,
+    encryptTime: now.toLocaleString('zh-CN'),
+    expireTime: expire.toLocaleString('zh-CN'),
+    markers,
+    direction,
+    extendParam,
+    validWells,
+    stateCodes,
+    interferenceCodes,
+    binaryStr,
+    expired: false,
+  };
+
+  phase = 'encrypted';
+  showUV = false;
+  showMarkers = false;
+  showRegion = false;
+  showDecode = false;
+  targetUVIntensity = 0;
+  uvIntensity = 0;
+
+  updateUI();
+  setFlowStep(1);
+  document.getElementById('ds-hint').innerHTML = '💡 加密完成！96孔板已随机布置（红/蓝紫）。点击「UV 365nm」开始解密流程';
+}
+
+function doUV() {
+  if (phase !== 'encrypted') return;
+  phase = 'uv';
+  showUV = true;
+  targetUVIntensity = 1;
+  updateUI();
+  setFlowStep(2);
+  document.getElementById('ds-hint').innerHTML = '💡 UV 365nm 照射下，所有孔被激发：蓝紫色=0（香豆素本征荧光），红色=1（+Eu³⁺）。点击孔查看光物理机理';
+}
+
+function doLocate() {
+  if (phase !== 'uv') return;
+  phase = 'located';
+  showMarkers = true;
+  showRegion = true;
+  updateUI();
+  setFlowStep(3);
+  document.getElementById('ds-hint').innerHTML = '💡 两个红色标记孔（⭐）定位了有效信息区域。外围72个干扰孔红/蓝紫状态完全随机，敌方无法区分信息与噪声';
+}
+
+function doDecode() {
+  if (phase !== 'located') return;
+  phase = 'decoded';
+  showDecode = true;
+
+  const { stateCodes, binaryStr, validWells, markers, message, encryptTime } = encryptedData;
+  
+  // 跳过标记孔，只读信息孔
+  const infoBits = [];
+  const infoWells = [];
+  for (const [r, c] of validWells) {
+    if (!markers.some(([mr, mc]) => mr === r && mc === c)) {
+      const key = `${r},${c}`;
+      const s = stateCodes[key] !== undefined ? stateCodes[key] : 0;
+      infoBits.push(s);
+      infoWells.push(wellToLabel(r, c));
+    }
+  }
+
+  encryptedData._decoded = infoBits;
+  encryptedData._infoWells = infoWells;
+
+  // 将二进制按 8 位分组转 ASCII
+  const asciiChars = [];
+  for (let i = 0; i + 8 <= infoBits.length; i += 8) {
+    const byte = infoBits.slice(i, i + 8).join('');
+    const code = parseInt(byte, 2);
+    if (code >= 32 && code <= 126) {
+      asciiChars.push(String.fromCharCode(code));
+    } else {
+      asciiChars.push('?');
+    }
+  }
+  const asciiText = asciiChars.join('');
+
+  document.getElementById('decode-result').innerHTML =
+    `<div style="margin-bottom:6px;color:#ffaa44;">📋 加密信息</div>
+    <div style="color:#ffffff;font-size:15px;margin-bottom:10px;">${message}</div>
+    <div style="color:var(--text-dim);font-size:11px;">加密时间: ${encryptTime}</div>
+    <div style="margin-top:8px;color:#66ff88;">🔓 二进制密文</div>
+    <div style="color:#7d6dff;font-size:13px;font-family:'Courier New';word-break:break-all;">
+      蓝紫=0 红=1：<b>${binaryStr}</b>
+    </div>
+    <div style="margin-top:6px;font-size:11px;color:var(--text-dim);">
+      ${infoBits.length} 位有效信息 · 破解复杂度 ≈ 4<sup>22</sup> ≈ 1.7×10<sup>13</sup>
+    </div>`;
+
+  updateUI();
+  setFlowStep(4);
+  document.getElementById('ds-hint').innerHTML = '💡 解码完成！红/蓝紫二进制编码：标记位置 × 区域随机 × 72干扰孔状态完全随机';
+}
+
+function doReset() {
+  phase = 'ready';
+  encryptedData = null;
+  showUV = false;
+  showMarkers = false;
+  showRegion = false;
+  showDecode = false;
+  targetUVIntensity = 0;
+  uvIntensity = 0;
+  highlightPulse = 0;
+  hoveredWell = null;
+  document.getElementById('decode-result').innerHTML = '— 尚未解密 —';
+  document.getElementById('expire-warning').style.display = 'none';
+  document.getElementById('ds-hint').innerHTML = '💡 点击「加密生成」开始96孔板AIE分子加解密演示';
+  updateUI();
+  setFlowStep(0);
+  closePopup();
+}
+
+function updateDeepSeekPanel() {
+  const titleEl = document.getElementById('ds-card-title');
+  const bodyEl = document.getElementById('ds-card-body');
+  const card = document.getElementById('ds-card');
+
+  const scenes = {
+    ready: {
+      title: '① 加密存储 · 等待加密',
+      color: 'var(--warn)',
+      html: `<p>96 孔板在自然光下所有孔外观一致，<span class="tag tag-blue">无紫外激发</span>时不发射荧光。</p>
+             <p>AIE 分子被固定在孔底，实现情报的<span class="tag tag-red">物理隐形</span>，规避目视侦察。</p>
+             <p>点击「🔒 加密生成」开始随机布置红/蓝紫二进制阵列。</p>`
+    },
+    encrypted: {
+      title: '① 加密存储 · 已隐写',
+      color: 'var(--warn)',
+      html: `<p>加密完成。96 孔中随机布置：</p>
+             <p><span class="rule-dot" style="display:inline-block;width:8px;height:8px;background:#7d6dff;vertical-align:middle;border-radius:50%;margin-right:4px;"></span>香豆素-3-羧酸 → 蓝紫色荧光 → <span class="tag tag-blue">0</span></p>
+             <p><span class="rule-dot" style="display:inline-block;width:8px;height:8px;background:#ff4455;vertical-align:middle;border-radius:50%;margin-right:4px;"></span>香豆素-3-羧酸+Eu³⁺ → 红色荧光 → <span class="tag tag-red">1</span></p>
+             <p>标记孔与干扰孔使敌方无法从外形区分真伪。</p>`
+    },
+    uv: {
+      title: '② UV 显形 · 斯托克斯位移',
+      color: '#7d6dff',
+      html: `<p>365 nm 紫外光激发后，香豆素 π→π* 跃迁，电子从 S₀ 跃迁至 S₁。</p>
+             <p>经振动弛豫后，以较长波长（~450 nm）发射蓝紫色荧光，即<span class="tag tag-blue">斯托克斯位移</span>。</p>
+             <p>含 Eu³⁺ 的孔通过<span class="tag tag-red">天线效应</span>敏化，发射 ~612 nm 红色荧光。</p>`
+    },
+    located: {
+      title: '③ 定位标记 · Eu³⁺ 天线效应',
+      color: '#ff4455',
+      html: `<p>两个红色标记孔（⭐）定义有效信息区域边界。</p>
+             <p>Eu³⁺ 与香豆素羧基配位，配体吸收紫外能量后传递至稀土中心，⁵D₀→⁷F₂ 跃迁发出红光。</p>
+             <p>72 个干扰孔同样随机红/蓝紫，无密钥无法定位真实信息。</p>`
+    },
+    decoded: {
+      title: '④ 解码完成 · 二进制转译',
+      color: '#66ff88',
+      html: `<p>按标记孔确定的方向读取有效区域，跳过标记孔：</p>
+             <p><span class="tag tag-blue">蓝紫 = 0</span> · <span class="tag tag-red">红 = 1</span></p>
+             <p>拼接 22 位二进制串即可获得明文，完成化学荧光 → 二进制密码的转译。</p>`
+    }
+  };
+
+  const s = scenes[phase] || scenes.ready;
+  titleEl.textContent = s.title;
+  titleEl.style.color = s.color;
+  card.style.borderLeftColor = s.color;
+  bodyEl.innerHTML = s.html;
+  card.classList.remove('dim');
+}
+
+function updateUI() {
+  const tag = document.getElementById('phase-tag');
+  tag.className = 'phase-tag';
+  const infoMsg = document.getElementById('info-msg');
+  const infoTime = document.getElementById('info-time');
+  const infoRegion = document.getElementById('info-region');
+  const infoDirection = document.getElementById('info-direction');
+  const infoValid = document.getElementById('info-valid');
+  const infoInterference = document.getElementById('info-interference');
+
+  // 按钮
+  document.getElementById('btn-encrypt').disabled = (phase !== 'ready' && phase !== 'decoded');
+  document.getElementById('btn-uv').disabled = (phase !== 'encrypted');
+  document.getElementById('btn-locate').disabled = (phase !== 'uv');
+  document.getElementById('btn-decode').disabled = (phase !== 'located');
+
+  if (phase === 'ready') {
+    tag.textContent = '就绪'; tag.classList.add('enc');
+    infoMsg.textContent = '— 未加密 —';
+    infoTime.textContent = '—';
+    infoRegion.textContent = '—';
+    infoDirection.textContent = '—';
+    infoValid.textContent = '—';
+    infoInterference.textContent = '—';
+  } else if (encryptedData) {
+    const d = encryptedData;
+    if (phase === 'encrypted') { tag.textContent = '已加密'; tag.classList.add('enc'); }
+    else if (phase === 'uv') { tag.textContent = 'UV显色'; tag.classList.add('uv'); }
+    else if (phase === 'located') { tag.textContent = '已定位'; tag.classList.add('loc'); }
+    else if (phase === 'decoded') { tag.textContent = '已解码'; tag.classList.add('dec'); }
+
+    infoMsg.textContent = d.message;
+    infoTime.textContent = d.encryptTime;
+    infoRegion.textContent = `${wellToLabel(...d.markers[0])} → ${wellToLabel(...d.markers[1])}`;
+    infoDirection.textContent = d.direction;
+    infoValid.textContent = `${d.validWells.length} 个（含2标记孔+${d.validWells.length - 2}信息孔）`;
+    infoInterference.textContent = `${ROWS * COLS - d.validWells.length} 个（随机红/蓝紫）`;
+  }
+
+  // 更新映射表
+  updateMappingDisplay();
+
+  // 更新 DeepSeek 交互答疑面板
+  updateDeepSeekPanel();
+}
+
+function updateMappingDisplay() {
+  const grid = document.getElementById('mapping-grid');
+  grid.innerHTML = `
+    <div class="map-item" style="background:rgba(125,109,255,0.12);border-color:rgba(125,109,255,0.3);">
+      <span class="m-dot" style="background:#7d6dff"></span>蓝紫色<span class="m-label">= 二进制 0</span>
+    </div>
+    <div class="map-item" style="background:rgba(255,68,85,0.12);border-color:rgba(255,68,85,0.3);">
+      <span class="m-dot" style="background:#ff4455"></span>红色<span class="m-label">= 二进制 1</span>
+    </div>`;
+}
+
+function setFlowStep(n) {
+  document.querySelectorAll('.flow-step').forEach((el, i) => {
+    el.classList.toggle('current', i === n - 1);
+  });
+}
+
+// ============================================================
+// 绘制
+// ============================================================
+function drawBackground() {
+  const grad = ctx.createLinearGradient(0, 0, 0, ch);
+  grad.addColorStop(0, '#0e1626');
+  grad.addColorStop(1, '#070b14');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, cw, ch);
+
+  ctx.strokeStyle = 'rgba(80,120,180,0.03)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= cw; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke(); }
+  for (let y = 0; y <= ch; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke(); }
+}
+
+function drawUVOverlay() {
+  if (uvIntensity < 0.01) return;
+  const uvY = Math.min(40, ch * 0.08);
+  const g = ctx.createLinearGradient(0, uvY - 30, 0, uvY + 20);
+  g.addColorStop(0, 'rgba(150,120,255,0)');
+  g.addColorStop(0.5, `rgba(150,120,255,${0.3 * uvIntensity})`);
+  g.addColorStop(1, 'rgba(150,120,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, uvY - 30, cw, 50);
+
+  ctx.fillStyle = `rgba(58,42,102,${0.8 * uvIntensity})`;
+  ctx.fillRect(cw * 0.3, uvY - 6, cw * 0.4, 10);
+  ctx.fillStyle = `rgba(125,109,255,${0.9 * uvIntensity})`;
+  ctx.fillRect(cw * 0.3, uvY - 6, cw * 0.4, 3);
+
+  ctx.fillStyle = `rgba(180,160,255,${0.7 * uvIntensity})`;
+  ctx.font = 'bold 12px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('🔮 UV 365nm — 持续照射', cw / 2, uvY - 18);
+}
+
+function drawPlate() {
+  const { ox, oy, pw, ph, totalW, totalH } = getPlateOrigin();
+
+  // 板背景
+  ctx.fillStyle = 'rgba(15,22,38,0.7)';
+  ctx.strokeStyle = 'rgba(100,140,200,0.2)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(ox - PLATE_PAD_L + 20, oy - PLATE_PAD_T + 20, totalW - 40, totalH - 40, 10);
+  ctx.fill();
+  ctx.stroke();
+
+  // UV 光晕
+  if (uvIntensity > 0.01) {
+    const glowG = ctx.createRadialGradient(ox + pw / 2, oy + ph / 2, pw * 0.2, ox + pw / 2, oy + ph / 2, pw * 0.9);
+    glowG.addColorStop(0, `rgba(120,100,200,${0.08 * uvIntensity})`);
+    glowG.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glowG;
+    ctx.fillRect(ox - 30, oy - 30, pw + 60, ph + 60);
+  }
+
+  // 有效区域高亮
+  if (showRegion && encryptedData) {
+    const { validWells } = encryptedData;
+    if (validWells.length > 0) {
+      let minR = ROWS, maxR = 0, minC = COLS, maxC = 0;
+      for (const [r, c] of validWells) {
+        if (r < minR) minR = r; if (r > maxR) maxR = r;
+        if (c < minC) minC = c; if (c > maxC) maxC = c;
+      }
+      const { x: x1, y: y1 } = getWellCenter(minR, minC);
+      const { x: x2, y: y2 } = getWellCenter(maxR, maxC);
+      const pad = WELL_R + 8;
+      const rx = x1 - pad, ry = y1 - pad;
+      const rw = x2 - x1 + pad * 2, rh = y2 - y1 + pad * 2;
+
+      // 脉动边框
+      const pulseAlpha = 0.5 + 0.5 * Math.sin(highlightPulse * 0.05);
+      ctx.strokeStyle = `rgba(125,109,255,${0.4 + 0.3 * pulseAlpha})`;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 4]);
+      ctx.lineDashOffset = highlightPulse * 0.3;
+      ctx.beginPath();
+      ctx.roundRect(rx, ry, rw, rh, 8);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 区域标签
+      ctx.fillStyle = `rgba(125,109,255,${0.7 + 0.3 * pulseAlpha})`;
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('有效信息区域', rx + rw / 2, ry - 10);
+    }
+  }
+
+  // 绘制每个孔
+  const fullPlate = getFullPlate();
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const { x, y } = getWellCenter(r, c);
+      const key = `${r},${c}`;
+      const isHovered = hoveredWell && hoveredWell[0] === r && hoveredWell[1] === c;
+      const isMarker = encryptedData && encryptedData.markers.some(([mr, mc]) => mr === r && mc === c);
+      const isValid = encryptedData && encryptedData.validWells.some(([vr, vc]) => vr === r && vc === c);
+
+      let fillColor, glowColor;
+      let isDecodedValid = false;
+
+      if (!showUV) {
+        // 未照射：所有孔外观一致
+        fillColor = '#2a3542';
+        glowColor = 'rgba(60,70,85,0.15)';
+      } else {
+        const state = fullPlate[key] !== undefined ? fullPlate[key] : 0;
+        const mol = MOLECULE_TYPES[state];
+        fillColor = mol.color;
+        glowColor = showDecode && !isValid ? `rgba(60,70,85,0.25)` : mol.glow;
+
+        if (showDecode && isValid) {
+          isDecodedValid = true;
+        }
+      }
+
+      // 孔外发光
+      if (showUV && uvIntensity > 0.01) {
+        const glowAlpha = showDecode && !isValid ? 0.1 : 0.7;
+        const g = ctx.createRadialGradient(x, y, WELL_R * 0.5, x, y, WELL_R * 2.2);
+        g.addColorStop(0, glowColor);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, WELL_R * 2.2, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // 孔体
+      let holeColor = fillColor;
+      if (showDecode && !isValid) {
+        holeColor = '#1e2a35';
+      }
+
+      ctx.fillStyle = holeColor;
+      ctx.beginPath(); ctx.arc(x, y, WELL_R, 0, Math.PI * 2); ctx.fill();
+
+      // 孔边框
+      if (showDecode && !isValid) {
+        ctx.strokeStyle = 'rgba(100,120,140,0.15)';
+        ctx.lineWidth = 0.5;
+      } else if (isMarker && showMarkers) {
+        const pulse = 0.5 + 0.5 * Math.sin(highlightPulse * 0.08);
+        ctx.strokeStyle = `rgba(255,220,60,${0.7 + 0.3 * pulse})`;
+        ctx.lineWidth = 3;
+      } else if (isHovered) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+        ctx.lineWidth = 2;
+      } else {
+        ctx.strokeStyle = 'rgba(180,200,220,0.2)';
+        ctx.lineWidth = 1;
+      }
+      ctx.beginPath(); ctx.arc(x, y, WELL_R, 0, Math.PI * 2); ctx.stroke();
+
+      // 标记孔星标
+      if (isMarker && showMarkers) {
+        ctx.fillStyle = '#ffdd33';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⭐', x, y);
+      }
+
+      // 解码态：有效孔标注
+      if (isDecodedValid && showDecode) {
+        const state = fullPlate[key] !== undefined ? fullPlate[key] : 0;
+        ctx.fillStyle = state === 1 ? '#ff4455' : '#7d6dff';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(state, x, y);
+      }
+    }
+  }
+
+  // 标签
+  ctx.fillStyle = 'rgba(180,200,220,0.5)';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let c = 0; c < COLS; c++) {
+    const { x } = getWellCenter(0, c);
+    ctx.fillText(c + 1, x, oy - 16);
+  }
+  ctx.textAlign = 'right';
+  for (let r = 0; r < ROWS; r++) {
+    const { y } = getWellCenter(r, 0);
+    ctx.fillText(ROW_NAMES[r], ox - 10, y);
+  }
+}
+
+function drawTitle() {
+  ctx.fillStyle = 'rgba(180,200,230,0.5)';
+  ctx.font = '13px sans-serif';
+  ctx.textAlign = 'center';
+  const { oy, ph, ox, pw } = getPlateOrigin();
+  ctx.fillText('96孔板 · 红/蓝紫二进制加密系统', ox + pw / 2, oy + ph + 30);
+}
+
+// ============================================================
+// 渲染循环
+// ============================================================
+function render() {
+  ctx.clearRect(0, 0, cw, ch);
+  drawBackground();
+  drawUVOverlay();
+  drawPlate();
+  drawTitle();
+}
+
+function loop(t) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((t - lastTime) / 1000, 0.06);
+  lastTime = t;
+  update(dt);
+  render();
+}
+
+function update(dt) {
+  highlightPulse += dt * 60;
+
+  if (Math.abs(uvIntensity - targetUVIntensity) > 0.005) {
+    uvIntensity += (targetUVIntensity - uvIntensity) * 0.06;
+  } else {
+    uvIntensity = targetUVIntensity;
+  }
+}
+
+// ============================================================
+// 事件：画布点击 → DeepSeek 弹窗 + 孔悬停
+// ============================================================
+function getWellAtPos(ex, ey) {
+  const { ox, oy } = getPlateOrigin();
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const { x, y } = getWellCenter(r, c);
+      if (Math.hypot(ex - x, ey - y) <= WELL_R + 2) {
+        return [r, c];
+      }
+    }
+  }
+  return null;
+}
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const ex = e.clientX - rect.left;
+  const ey = e.clientY - rect.top;
+  const well = getWellAtPos(ex, ey);
+  if (well) {
+    showWellMechanism(well, e.clientX, e.clientY);
+  }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const ex = e.clientX - rect.left;
+  const ey = e.clientY - rect.top;
+  hoveredWell = getWellAtPos(ex, ey);
+  canvas.style.cursor = hoveredWell ? 'pointer' : 'default';
+});
+
+canvas.addEventListener('mouseleave', () => { hoveredWell = null; });
+
+// ============================================================
+// DeepSeek 弹窗
+// ============================================================
+const popup = document.getElementById('ds-popup');
+const popupBody = document.getElementById('ds-popup-body');
+const popupTitleEl = document.getElementById('ds-popup-title');
+document.getElementById('ds-popup-close').addEventListener('click', () => popup.classList.remove('show'));
+
+function closePopup() { popup.classList.remove('show'); }
+
+function showPopup(title, html, cx, cy) {
+  popupTitleEl.textContent = title;
+  popupBody.innerHTML = html;
+  popup.classList.add('show');
+  const rect = canvasArea.getBoundingClientRect();
+  const pw = 300;
+  let px = cx - rect.left + 16;
+  let py = cy - rect.top - 10;
+  if (px + pw > rect.width) px = cx - rect.left - pw - 16;
+  if (py + 300 > rect.height) py = Math.max(5, rect.height - 310);
+  if (py < 5) py = 5;
+  popup.style.left = px + 'px';
+  popup.style.top = py + 'px';
+}
+
+function showWellMechanism(well, clickX, clickY) {
+  const [r, c] = well;
+  const label = wellToLabel(r, c);
+
+  if (phase === 'ready') {
+    showPopup(`孔位 ${label}`,
+      `<p><b>96孔板 · ${label}</b></p>
+      <p>尚未进行加密操作。</p>
+      <p>所有孔位当前为空，等待AIE分子加样。</p>
+      <p class="ds-note">请点击底部「🔒 加密生成」按钮，开始随机布置96孔板。</p>`, clickX, clickY);
+    return;
+  }
+
+  const fullPlate = getFullPlate();
+  const key = `${r},${c}`;
+  const state = fullPlate[key] !== undefined ? fullPlate[key] : 0;
+  const isMarker = encryptedData.markers.some(([mr, mc]) => mr === r && mc === c);
+  const isValid = encryptedData.validWells.some(([vr, vc]) => vr === r && vc === c);
+
+  let title = `孔 ${label}`;
+  let body = '';
+
+  if (state === 0) {
+    title += ' · 香豆素-3-羧酸（蓝紫色荧光 = 0）';
+    body = `<p><b>分子类型：</b>香豆素-3-羧酸（水杨醛 + 米氏酸）</p>
+      <p><b>紫外下现象：</b><span style="color:#7d6dff;font-weight:600;">蓝紫色荧光</span></p>
+      <p><b>二进制编码：</b>0</p>
+      <p><b>光物理机理：</b>香豆素-3-羧酸在365nm UV激发下，</p>
+      <p>π→π* 跃迁产生本征荧光，发射波长~450nm（蓝紫色）。</p>
+      <p>苯并吡喃酮共轭大π环为发光核心。</p>
+      ${!isValid && showUV ? '<p style="color:#ffaa44;">⚠️ 此孔为干扰孔，状态完全随机，与有效信息无关</p>' : ''}
+      <svg id="ds-popup-svg" width="240" height="70" viewBox="0 0 240 70">
+        <text x="20" y="20" fill="#888" font-size="10">基态 S₀（暗）</text>
+        <circle cx="60" cy="45" r="12" fill="rgba(40,50,60,0.6)" stroke="#555" stroke-width="1"/>
+        <text x="120" y="20" fill="#888" font-size="10">激发态 S₁（亮蓝紫）</text>
+        <circle cx="160" cy="45" r="15" fill="rgba(125,109,255,0.5)" stroke="#7d6dff" stroke-width="2"/>
+        <path d="M75 45 L140 45" stroke="#7d6dff" stroke-width="1.5" marker-end="url(#auv)"/>
+        <text x="108" y="38" text-anchor="middle" fill="#7d6dff" font-size="9">UV激发</text>
+        <defs><marker id="auv" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0,0 6,3 0,6" fill="#7d6dff"/></marker></defs>
+      </svg>
+      <p class="ds-note">斯托克斯位移：λex~350nm → λem~450nm，能量差约0.8eV</p>`;
+  } else if (state === 1) {
+    title += ' · 香豆素-3-羧酸+Eu³⁺（红色荧光 = 1）';
+    body = `<p><b>分子类型：</b>香豆素-3-羧酸 + Eu³⁺ 稀土配合物</p>
+      <p><b>紫外下现象：</b><span style="color:#ff4455;font-weight:600;">红色荧光</span></p>
+      <p><b>二进制编码：</b>1 ${isMarker ? '（⭐ 定位标记孔）' : ''}</p>
+      <p><b>光物理机理：</b>Eu³⁺ 与香豆素羧基配位形成配合物，</p>
+      <p>天线效应：香豆素吸收UV → 能量传递至 Eu³⁺ →</p>
+      <p>⁵D₀→⁷F₂ 跃迁发射特征红色荧光（~612nm）。</p>
+      ${isMarker && showMarkers ? '<p style="color:#ffdd33;">⭐ 此孔为系统标记孔，用于定位有效信息区域边界</p>' : ''}
+      ${!isValid && showUV ? '<p style="color:#ffaa44;">⚠️ 此孔为干扰孔，虽然显示红色但并非真实信息位。</p>' : ''}
+      <svg id="ds-popup-svg" width="240" height="80" viewBox="0 0 240 80">
+        <text x="10" y="14" fill="#888" font-size="9">香豆素吸收UV</text>
+        <rect x="10" y="22" width="55" height="18" rx="3" fill="rgba(125,109,255,0.2)" stroke="#7d6dff" stroke-width="1"/>
+        <text x="37" y="35" text-anchor="middle" fill="#7d6dff" font-size="8">配体→Eu³⁺</text>
+        <path d="M70 31 L130 31" stroke="#ff4455" stroke-width="1.5" marker-end="url(#aeu)"/>
+        <text x="100" y="23" text-anchor="middle" fill="#ff4455" font-size="8">能量传递</text>
+        <rect x="155" y="16" width="65" height="30" rx="3" fill="rgba(255,68,85,0.2)" stroke="#ff4455" stroke-width="2"/>
+        <text x="187" y="35" text-anchor="middle" fill="#ff4455" font-size="8">⁵D₀→⁷F₂</text>
+        <text x="187" y="52" text-anchor="middle" fill="#ff4455" font-size="8">~612nm红光</text>
+        <defs><marker id="aeu" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0,0 6,3 0,6" fill="#ff4455"/></marker></defs>
+      </svg>
+      <p class="ds-note">Eu³⁺ 天线效应：配体敏化→能量转移→稀土特征窄带发射</p>`;
+  }
+
+  if (title) showPopup(title, body, clickX, clickY);
+}
+
+// 流程步骤点击
+document.querySelectorAll('.flow-step').forEach((el, i) => {
+  el.addEventListener('click', (e) => {
+    const steps = [
+      {
+        title: '① 加密生成：随机布置96孔板',
+        body: `<p><b>四重随机加密机制：</b></p>
+          <p style="font-size:11px;line-height:1.7;">
+          1. <span style="color:#ffdd33;">标记孔位置完全随机</span>（864种可能）<br>
+          2. <span style="color:#44ee66;">有效信息区域随机</span>（横向/纵向48种位置）<br>
+          3. <span style="color:#ff4455;">每个信息孔随机红/蓝紫</span>（每孔2种可能）<br>
+          4. <span style="color:#7d6dff;">72个干扰孔红/蓝紫随机</span>（完全无法区分）
+          </p>
+          <p style="color:#ffaa44;">总破解复杂度 ≈ 864 × 48 × 2<sup>22</sup> × 2<sup>72</sup></p>
+          <p class="ds-note">所有孔在自然光下外观一致，无紫外激发不发光，实现完美隐写</p>`
+      },
+      {
+        title: '② UV照射：全板荧光显色',
+        body: `<p><b>365nm紫外灯照射板面：</b></p>
+          <p>所有孔同时被激发，<span style="color:#7d6dff">蓝紫色 = 0</span>（香豆素本征荧光），<span style="color:#ff4455">红色 = 1</span>（+Eu³⁺天线效应）</p>
+          <p>72个干扰孔同样随机显示红/蓝紫，外观与有效孔完全相同</p>
+          <p>敌方即使有UV设备，也无法区分哪些孔包含真实信息</p>
+          <p class="ds-note">关键设计：全激发、两色编码，96孔全部显色无空白</p>`
+      },
+      {
+        title: '③ 定位标记孔：识别有效区域',
+        body: `<p><b>只有持有密钥的人才知道：</b></p>
+          <p>两个<span style="color:#ff4455">⭐红色标记孔</span>定义了有效区域的边界</p>
+          <p>横向标记 → 有效区域为矩形（标记孔之间的连续区域）</p>
+          <p>纵向标记 → 同理</p>
+          <p>有效区域占24个孔（含2个标记孔、22个信息孔）</p>
+          <p class="ds-note">敌方不知道标记位置→无法定位有效区域→无法解密</p>`
+      },
+      {
+        title: '④ 解码：读取二进制密文',
+        body: `<p><b>三步解码流程：</b></p>
+          <p>① 找到两个红色标记孔 → 确定有效区域范围</p>
+          <p>② 按方向（横/纵）读取有效区域信息孔的红/蓝紫 → 1/0</p>
+          <p>③ 拼接二进制串 → 获得密文</p>
+          <p style="color:#66ff88;">蓝紫色=0 · 红色=1，22位有效二进制信息</p>
+          <p class="ds-note">可逆擦除：可见光照射→Eu³⁺配合物部分解离→信息衰减</p>`
+      }
+    ];
+    showPopup(steps[i].title, steps[i].body, e.clientX, e.clientY);
+  });
+});
+
+// DeepSeek 面板点击 → 弹出详细机理
+document.getElementById('panel-ds').addEventListener('click', (e) => {
+  if (e.target.closest('#ds-card') || e.target.closest('.ds-head')) {
+    const details = {
+      ready: {
+        title: 'AIE 分子隐写加密原理',
+        body: `<p><b>物理隐形：</b>香豆素-3-羧酸及 Eu³⁺ 配合物在可见光下均为无色或浅色溶液/固体，肉眼无法区分。</p>
+          <p><b>激发依赖：</b>必须借助 365 nm 紫外光激发才能产生荧光，没有 UV 光源则整板看起来完全空白。</p>
+          <p><b>四重随机：</b>标记孔位置、有效区域、信息孔状态、72 个干扰孔全部随机生成，破解复杂度极高。</p>
+          <p class="ds-note">这是第一层加密：让情报在物理上「消失」。</p>`
+      },
+      encrypted: {
+        title: '已加密阵列的分子构成',
+        body: `<p><b>蓝紫色孔（0）：</b>纯香豆素-3-羧酸，紫外激发下 π→π* 跃迁，发射 ~450 nm 蓝紫光。</p>
+          <p><b>红色孔（1）：</b>香豆素-3-羧酸与 Eu³⁺ 形成配合物，通过天线效应敏化稀土离子，发射 ~612 nm 红光。</p>
+          <p><b>标记孔：</b>红色，用于定位有效区域边界，解码时需跳过。</p>
+          <p><b>干扰孔：</b>72 个非有效孔，红/蓝紫完全随机，迷惑敌方。</p>
+          <p class="ds-note">所有孔在自然光下外观一致，实现「全激发、靠颜色解码」的设计。</p>`
+      },
+      uv: {
+        title: '斯托克斯位移与双发色机理',
+        body: `<svg id="ds-popup-svg" width="240" height="70" viewBox="0 0 240 70">
+          <text x="20" y="20" fill="#888" font-size="10">基态 S₀（暗）</text>
+          <circle cx="60" cy="45" r="12" fill="rgba(40,50,60,0.6)" stroke="#555" stroke-width="1"/>
+          <text x="120" y="20" fill="#888" font-size="10">激发态 S₁（亮蓝紫）</text>
+          <circle cx="160" cy="45" r="15" fill="rgba(125,109,255,0.5)" stroke="#7d6dff" stroke-width="2"/>
+          <path d="M75 45 L140 45" stroke="#7d6dff" stroke-width="1.5" marker-end="url(#auv2)"/>
+          <text x="108" y="38" text-anchor="middle" fill="#7d6dff" font-size="9">UV激发</text>
+          <defs><marker id="auv2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0,0 6,3 0,6" fill="#7d6dff"/></marker></defs>
+        </svg>
+        <p><b>斯托克斯位移：</b>吸收光波长（~350 nm）短于发射光波长（~450 nm），能量部分以振动弛豫形式损失。</p>
+        <p><b>双发色：</b>纯香豆素发蓝紫光；Eu³⁺ 配合物通过配体→稀土能量传递发特征红光。</p>
+        <p class="ds-note">正是这两种可区分的荧光色构成了 0/1 二进制编码。</p>`
+      },
+      located: {
+        title: 'Eu³⁺ 天线效应与标记定位',
+        body: `<svg id="ds-popup-svg" width="240" height="80" viewBox="0 0 240 80">
+          <text x="10" y="14" fill="#888" font-size="9">香豆素吸收UV</text>
+          <rect x="10" y="22" width="55" height="18" rx="3" fill="rgba(125,109,255,0.2)" stroke="#7d6dff" stroke-width="1"/>
+          <text x="37" y="35" text-anchor="middle" fill="#7d6dff" font-size="8">配体→Eu³⁺</text>
+          <path d="M70 31 L130 31" stroke="#ff4455" stroke-width="1.5" marker-end="url(#aeu2)"/>
+          <text x="100" y="23" text-anchor="middle" fill="#ff4455" font-size="8">能量传递</text>
+          <rect x="155" y="16" width="65" height="30" rx="3" fill="rgba(255,68,85,0.2)" stroke="#ff4455" stroke-width="2"/>
+          <text x="187" y="35" text-anchor="middle" fill="#ff4455" font-size="8">⁵D₀→⁷F₂</text>
+          <text x="187" y="52" text-anchor="middle" fill="#ff4455" font-size="8">~612nm红光</text>
+          <defs><marker id="aeu2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><polygon points="0,0 6,3 0,6" fill="#ff4455"/></marker></defs>
+        </svg>
+        <p><b>天线效应：</b>香豆素配体具有大的吸收截面，捕获紫外光子后将能量传递给 Eu³⁺。</p>
+        <p><b>稀土特征发射：</b>Eu³⁺ 的 ⁵D₀→⁷F₂ 电偶极跃迁产生半峰宽窄、色纯度高的红光。</p>
+        <p><b>标记定位：</b>两个红色标记孔确定有效区域起点与终点，解码时只读取区域内的信息孔。</p>
+        <p class="ds-note">无密钥者即使看到全板荧光，也找不到从哪一格开始读。</p>`
+      },
+      decoded: {
+        title: '二进制解码与信息提取',
+        body: `<p><b>读取规则：</b></p>
+        <p>① 定位两个红色标记孔，确定有效区域边界；</p>
+        <p>② 按区域方向依次读取信息孔（跳过标记孔）；</p>
+        <p>③ 蓝紫 = 0，红 = 1，拼接二进制串。</p>
+        <p><b>安全性：</b>22 个信息位 + 72 个干扰孔 + 随机区域 + 随机标记位置，总状态空间极其庞大。</p>
+        <p class="ds-note">化学荧光色 → 二进制 → 明文，完成三层转译。</p>`
+      }
+    };
+    const d = details[phase] || details.ready;
+    const rect = e.currentTarget.getBoundingClientRect();
+    showPopup(d.title, d.body, rect.left + rect.width / 2, rect.top + 60);
+  }
+});
+
+// 右侧面板的映射表面板点击
+document.getElementById('panel-mapping').addEventListener('click', (e) => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  showPopup('红/蓝紫 二进制编码规则',
+    `<p><b>香豆素-3-羧酸加解密编码：</b></p>
+    <p style="color:#7d6dff;font-size:14px;">● 蓝紫色荧光 → 二进制 0</p>
+    <p style="font-size:11px;color:var(--text-dim);">香豆素-3-羧酸本征荧光，π→π*跃迁 ~450nm</p>
+    <p style="color:#ff4455;font-size:14px;">● 红色荧光 → 二进制 1</p>
+    <p style="font-size:11px;color:var(--text-dim);">+Eu³⁺天线效应，⁵D₀→⁷F₂跃迁 ~612nm</p>
+    <p style="margin-top:8px;">有效信息孔 22 个 × 每孔 1 bit = 22 位密文</p>
+    <p class="ds-note">与单试管实验一一对应：蓝紫(隐写) / 红(+Eu³⁺解密)</p>`,
+    e.clientX, e.clientY);
+});
+
+// ============================================================
+// 启动
+// ============================================================
+resize();
+render();
+requestAnimationFrame(loop);
+updateUI();
+</script>
+</body>
+</html>
