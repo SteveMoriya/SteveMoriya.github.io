@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDTA 滴定 · 水硬度计算</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --accent: #6366f1; --accent-soft: rgba(99,102,241,0.25); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .acc-text { color: var(--accent); }
+        .acc-ring:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+        .err-ring { box-shadow: 0 0 0 2px #ef4444 !important; border-color: #ef4444 !important; background: #fef2f2; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-4px)} 40%{transform:translateX(4px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
+        .shake { animation: shake 0.35s ease; }
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)} }
+    </style>
+</head>
+<body class="bg-[#eef2f7] text-slate-900 min-h-screen font-sans">
+    <main class="max-w-7xl mx-auto px-8 py-8">
+
+        <!-- Header -->
+        <header class="mb-6">
+            <h1 class="text-3xl font-bold tracking-wide text-slate-900">EDTA 滴定 · 水硬度计算</h1>
+            <p class="text-base acc-text mt-1 font-semibold tracking-wider">单表单校验 · 防呆防错设计</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+        <!-- Left column: input -->
+        <div class="space-y-5">
+
+        <!-- Input card -->
+        <section class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <h2 class="text-sm font-bold text-slate-500 tracking-wider uppercase mb-4">界面输入区 Input</h2>
+
+            <div class="space-y-5">
+                <div>
+                    <label class="flex items-baseline justify-between mb-1.5">
+                        <span class="text-lg font-semibold text-slate-700">EDTA 标准溶液浓度 <span class="text-slate-400 font-mono text-xs">c</span></span>
+                        <span class="text-base text-slate-400 font-mono">mol/L</span>
+                    </label>
+                    <input id="in-c" type="number" step="0.0001" value="0.0100"
+                        class="acc-ring w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-mono text-lg tabular-nums transition-colors">
+                </div>
+
+                <div>
+                    <label class="flex items-baseline justify-between mb-1.5">
+                        <span class="text-lg font-semibold text-slate-700">滴定钙硬度消耗体积 <span class="text-slate-400 font-mono text-xs">V<sub>1</sub></span></span>
+                        <span class="text-sm text-slate-400">pH=12 · 钙指示剂 · 精度 0.01 mL</span>
+                    </label>
+                    <input id="in-v1" type="number" step="0.01" min="0" placeholder="0.00"
+                        class="acc-ring w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-mono text-lg tabular-nums transition-colors">
+                </div>
+
+                <div>
+                    <label class="flex items-baseline justify-between mb-1.5">
+                        <span class="text-lg font-semibold text-slate-700">滴定总硬度消耗体积 <span class="text-slate-400 font-mono text-xs">V<sub>2</sub></span></span>
+                        <span class="text-sm text-slate-400">pH=10 · 铬黑T · 精度 0.01 mL</span>
+                    </label>
+                    <input id="in-v2" type="number" step="0.01" min="0" placeholder="0.00"
+                        class="acc-ring w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-mono text-lg tabular-nums transition-colors">
+                </div>
+
+                <div>
+                    <label class="flex items-baseline justify-between mb-1.5">
+                        <span class="text-lg font-semibold text-slate-700">待测水样体积 <span class="text-slate-400 font-mono text-xs">V<sub>水</sub></span></span>
+                        <span class="text-base text-slate-400 font-mono">mL</span>
+                    </label>
+                    <input id="in-vw" type="number" step="0.01" value="100.00"
+                        class="acc-ring w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-mono text-lg tabular-nums transition-colors">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-100">
+                <p class="text-sm text-slate-400 leading-relaxed">滴定管量程 0 ~ 50 mL<br>数据校验通过后自动计算</p>
+                <button id="btn-example" class="text-base acc-text font-semibold px-5 py-2.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer">填入示例数据</button>
+            </div>
+        </section>
+
+        <!-- Message area -->
+        <div id="msg-box" class="rounded-xl px-5 py-4 text-lg font-semibold leading-relaxed border bg-slate-50 border-slate-200 text-slate-500">
+            💡 输入滴定体积后自动校验并计算
+        </div>
+
+        </div>
+        <!-- Right column: output -->
+        <div class="space-y-5">
+            <div id="result-placeholder" class="rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-lg text-slate-400 leading-relaxed lg:min-h-full flex flex-col items-center justify-center">
+                🧪 校验通过后<br>计算结果将显示在这里
+            </div>
+
+        <!-- Output card -->
+        <section id="result-card" class="hidden bg-white border border-emerald-200 rounded-2xl p-5 shadow-sm fade-in">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-bold text-slate-500 tracking-wider uppercase">输出区 Output <span class="text-slate-300">·</span> mg/L（以 CaCO₃ 计）</h2>
+                <span class="text-sm text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">✅ 校验通过</span>
+            </div>
+
+            <div class="divide-y divide-slate-100">
+                <div class="flex items-baseline justify-between py-2.5">
+                    <span class="text-lg text-slate-600 font-semibold">总硬度 <span class="text-sm text-slate-400">Ca + Mg</span></span>
+                    <span class="font-mono font-bold text-indigo-600 text-3xl tabular-nums" id="out-total">—</span>
+                </div>
+                <div class="flex items-baseline justify-between py-2.5">
+                    <span class="text-lg text-slate-600 font-semibold">钙硬度 <span class="text-sm text-slate-400">V<sub>1</sub></span></span>
+                    <span class="font-mono font-bold text-teal-600 text-3xl tabular-nums" id="out-ca">—</span>
+                </div>
+                <div class="flex items-baseline justify-between py-2.5">
+                    <span class="text-lg text-slate-600 font-semibold">镁硬度 <span class="text-sm text-slate-400">总 − 钙</span></span>
+                    <span class="font-mono font-bold text-amber-600 text-3xl tabular-nums" id="out-mg">—</span>
+                </div>
+            </div>
+
+            <!-- 计算过程 -->
+            <div class="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-4 text-[15px] text-slate-500 font-mono leading-relaxed" id="out-calc"></div>
+
+            <!-- 硬度分级条 -->
+            <div class="mt-4">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-sm font-bold text-slate-500 tracking-wider uppercase">水质硬度分级</span>
+                    <span id="grade-chip" class="text-sm font-bold rounded-full px-3.5 py-1"></span>
+                </div>
+                <div class="relative h-3.5 rounded-full overflow-hidden flex">
+                    <div class="h-full" style="width:16.7%;background:#7dd3fc;"></div>
+                    <div class="h-full" style="width:16.7%;background:#38bdf8;"></div>
+                    <div class="h-full" style="width:16.7%;background:#34d399;"></div>
+                    <div class="h-full" style="width:16.6%;background:#fbbf24;"></div>
+                    <div class="h-full" style="width:16.6%;background:#f87171;"></div>
+                </div>
+                <div class="relative h-4">
+                    <div id="grade-marker" class="absolute -top-2.5 w-0 h-0" style="left:0; transform:translateX(-50%); transition:left 0.4s ease;">
+                        <div class="w-0 h-0 border-l-4 border-r-4 border-b-[7px] border-l-transparent border-r-transparent border-b-slate-800 mx-auto"></div>
+                    </div>
+                </div>
+                <div class="flex justify-between text-sm text-slate-400 font-mono mt-0.5">
+                    <span>0</span><span>75</span><span>150</span><span>300</span><span>450</span><span>&gt;450</span>
+                </div>
+            </div>
+        </section>
+        </div>
+        </div>
+
+        <footer class="mt-8 text-center text-sm text-slate-400 leading-relaxed">
+            硬度 (mg/L) = c(EDTA) × V × M(CaCO₃) / V<sub>水</sub> × 1000，M(CaCO₃) = 100.09 g/mol
+        </footer>
+    </main>
+
+<script>
+(function () {
+    const $ = id => document.getElementById(id);
+    const inC = $('in-c'), inV1 = $('in-v1'), inV2 = $('in-v2'), inVW = $('in-vw');
+    const msgBox = $('msg-box'), resultCard = $('result-card'), resultPlaceholder = $('result-placeholder');
+
+    function showResult(on) {
+        resultCard.classList.toggle('hidden', !on);
+        resultPlaceholder.classList.toggle('hidden', on);
+    }
+    const V_MAX = 50;   // 滴定管量程
+    const touched = { v1: false, v2: false };
+
+    function readNum(el) {
+        const raw = el.value.trim();
+        if (raw === '') return { empty: true };
+        const n = Number(raw);
+        if (!isFinite(n)) return { invalid: true };
+        return { value: n };
+    }
+
+    function setErr(fields, on) {
+        fields.forEach(el => el.classList.toggle('err-ring', on));
+    }
+
+    function showMsg(kind, html, shake) {
+        msgBox.className = 'mt-4 rounded-xl px-5 py-4 text-lg font-semibold leading-relaxed border ' + (
+            kind === 'error' ? 'bg-red-50 border-red-200 text-red-600' :
+            kind === 'ok'    ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                               'bg-slate-50 border-slate-200 text-slate-500');
+        msgBox.innerHTML = html;
+        if (shake) { msgBox.classList.remove('shake'); void msgBox.offsetWidth; msgBox.classList.add('shake'); }
+    }
+
+    function gradeOf(total) {
+        if (total < 75)  return ['极软水',   'bg-sky-100 text-sky-700'];
+        if (total < 150) return ['软水',     'bg-sky-100 text-sky-700'];
+        if (total < 300) return ['中等硬水', 'bg-emerald-100 text-emerald-700'];
+        if (total <= 450) return ['硬水',    'bg-amber-100 text-amber-700'];
+        return ['极硬水', 'bg-red-100 text-red-700'];
+    }
+
+    function fmt2(n) { return n.toFixed(2); }
+
+    function validateAndCalc() {
+        // 1) 浓度 / 水样体积 —— 基本参数校验
+        const c = readNum(inC), vw = readNum(inVW);
+        let badParam = null;
+        if (c.empty || c.invalid || c.value <= 0) badParam = inC;
+        if (vw.empty || vw.invalid || vw.value <= 0) badParam = badParam || inVW;
+        setErr([inC, inVW], false);
+        if (badParam) {
+            setErr([badParam], true);
+            showResult(false);
+            showMsg('error', badParam === inC
+                ? '⚠️ 错误：EDTA 标准溶液浓度应为大于 0 的数值！'
+                : '⚠️ 错误：待测水样体积应为大于 0 的数值！');
+            return;
+        }
+
+        // 2) 滴定体积 —— 格式校验（防呆第一道关）
+        const v1 = readNum(inV1), v2 = readNum(inV2);
+        setErr([inV1, inV2], false);
+        const badRange = [];
+        [ [v1, inV1], [v2, inV2] ].forEach(([r, el]) => {
+            const blank = r.empty || r.invalid;
+            if (blank && touched[el === inV1 ? 'v1' : 'v2']) badRange.push(el);
+            if (!blank && (r.value < 0 || r.value > V_MAX)) badRange.push(el);
+        });
+        if (badRange.length) {
+            setErr(badRange, true);
+            showResult(false);
+            showMsg('error', '⚠️ 错误：滴定体积应在 0~50mL 之间！', true);
+            return;
+        }
+        if (v1.empty || v2.empty) {   // 尚未填完，保持中性提示
+            showResult(false);
+            showMsg('neutral', '💡 输入滴定体积后自动校验并计算');
+            return;
+        }
+
+        // 3) 逻辑硬伤校验（杀手锏）：pH=12 只测钙，消耗体积不可能超过 pH=10 测钙+镁
+        if (v1.value > v2.value) {
+            setErr([inV1, inV2], true);
+            showResult(false);
+            showMsg('error',
+                '❌ 逻辑错误：测钙消耗体积 (V₁) 不能大于测总量消耗体积 (V₂)！请重新核对原始数据！', true);
+            return;
+        }
+
+        // 4) 校验通过 —— 自动计算
+        const cc = c.value, vWater = vw.value;
+        const caHard  = cc * v1.value * 100.09 / vWater * 1000;
+        const total   = cc * v2.value * 100.09 / vWater * 1000;
+        const mgHard  = total - caHard;
+
+        $('out-total').textContent = fmt2(total);
+        $('out-ca').textContent    = fmt2(caHard);
+        $('out-mg').textContent    = fmt2(mgHard);
+
+        $('out-calc').innerHTML =
+            '总硬度 = ' + cc + ' × ' + fmt2(v2.value) + ' × 100.09 / ' + vWater + ' × 1000 = <b class="text-indigo-600">' + fmt2(total) + ' mg/L</b><br>' +
+            '钙硬度 = ' + cc + ' × ' + fmt2(v1.value) + ' × 100.09 / ' + vWater + ' × 1000 = <b class="text-teal-600">' + fmt2(caHard) + ' mg/L</b><br>' +
+            '镁硬度 = ' + fmt2(total) + ' − ' + fmt2(caHard) + ' = <b class="text-amber-600">' + fmt2(mgHard) + ' mg/L</b>';
+
+        // 硬度分级
+        const markerPos = Math.min(total, 540) / 540 * 100;
+        $('grade-marker').style.left = markerPos + '%';
+        const [grade, cls] = gradeOf(total);
+        const chip = $('grade-chip');
+        chip.textContent = grade;
+        chip.className = 'text-sm font-bold rounded-full px-3.5 py-1 ' + cls;
+
+        showResult(true);
+        showMsg('ok', '✅ 数据校验通过！结果已生成。');
+    }
+
+    [inC, inV1, inV2, inVW].forEach(el => el.addEventListener('input', validateAndCalc));
+    inV1.addEventListener('blur', () => { touched.v1 = true; validateAndCalc(); });
+    inV2.addEventListener('blur', () => { touched.v2 = true; validateAndCalc(); });
+    inV1.addEventListener('input', () => { touched.v1 = true; });
+    inV2.addEventListener('input', () => { touched.v2 = true; });
+
+    $('btn-example').addEventListener('click', () => {
+        inC.value = '0.0100';
+        inV1.value = '12.35';
+        inV2.value = '20.48';
+        inVW.value = '100.00';
+        touched.v1 = touched.v2 = true;
+        validateAndCalc();
+    });
+
+    validateAndCalc();
+})();
+</script>
+</body>
+</html>
