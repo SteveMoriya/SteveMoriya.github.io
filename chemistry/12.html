@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIE 聚合物荧光传感 · 全交互仿真沙盘</title>
+<style>
+:root{
+  --bg:#ffffff; --panel:#ffffff; --panel2:#f5f9fd; --line:#dce7f1;
+  --cyan:#0b6c86; --cyan-dim:#7aa9bb; --text:#0d2033; --dim:#3c5872;
+  --amber:#b45309; --red:#be123c; --green:#047857;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:#ffffff; color:var(--text); overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  display:flex; flex-direction:column;
+  background-image:
+    linear-gradient(rgba(14,116,144,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(14,116,144,.045) 1px,transparent 1px);
+  background-size:44px 44px;
+}
+/* ---------- header ---------- */
+.hud-top{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:10px 18px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.92);backdrop-filter:blur(6px)}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.emblem{width:40px;height:40px;flex:0 0 auto;border:1px solid var(--cyan);border-radius:8px;
+  display:grid;place-items:center;color:var(--cyan);font-family:var(--mono);font-size:13px;font-weight:800;
+  letter-spacing:.5px;background:#fff;box-shadow:0 0 0 3px rgba(14,116,144,.07)}
+.brand h1{font-size:18px;font-weight:800;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#0f2c46}
+.brand p{font-family:var(--mono);font-size:12px;font-weight:600;color:#3c5872;letter-spacing:1.1px;margin-top:3px}
+.top-right{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.chip{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.6px;padding:4px 9px;border-radius:4px;
+  border:1px solid var(--line);color:var(--dim);background:var(--panel2);white-space:nowrap}
+.chip.ok{color:var(--green);border-color:rgba(4,120,87,.28);background:rgba(4,120,87,.06)}
+.ghost-btn{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.6px;padding:5px 11px;border-radius:4px;cursor:pointer;
+  border:1px solid var(--line);background:#fff;color:var(--text);transition:.18s}
+.ghost-btn:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 2px 10px rgba(14,116,144,.12)}
+/* ---------- layout ---------- */
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:296px minmax(0,1fr) 372px;gap:12px;padding:12px}
+.col{min-height:0;display:flex;flex-direction:column;gap:12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;position:relative;overflow:hidden;
+  box-shadow:0 1px 3px rgba(15,40,70,.05)}
+.card::before,.card::after{content:"";position:absolute;width:9px;height:9px;border:1px solid rgba(14,116,144,.32);pointer-events:none}
+.card::before{top:-1px;left:-1px;border-right:0;border-bottom:0}
+.card::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:9px 12px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;font-weight:700;
+  letter-spacing:1.3px;color:var(--dim);text-transform:uppercase;background:#fbfdff}
+.card-h b{color:var(--cyan);font-weight:800}
+/* ---------- tabs ---------- */
+.tabs{padding:8px;display:flex;flex-direction:column;gap:6px}
+.tab{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:6px;cursor:pointer;
+  border:1px solid transparent;transition:.18s;background:transparent;text-align:left;width:100%;color:inherit;font:inherit}
+.tab:hover{background:rgba(14,116,144,.05);border-color:rgba(14,116,144,.16)}
+.tab.on{background:rgba(14,116,144,.08);border-color:rgba(14,116,144,.38)}
+.tab .no{font-family:var(--mono);font-size:14px;font-weight:800;color:#4d6f8c;padding-top:1px}
+.tab.on .no{color:var(--cyan)}
+.tab .tt{display:block;font-size:15px;font-weight:800;letter-spacing:.4px;color:#0b2740}
+.tab.on .tt{color:#08475a}
+.tab .sub{display:block;font-family:var(--mono);font-size:12.5px;font-weight:600;color:#44647f;margin-top:3px;letter-spacing:.5px}
+/* ---------- controls ---------- */
+.ctl-wrap{padding:12px}
+.ctl{display:none}
+.ctl.on{display:block}
+.row{margin-bottom:14px}
+.row:last-child{margin-bottom:0}
+.row-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.row-top label{font-size:13.5px;font-weight:700;color:#28455e;letter-spacing:.3px}
+.row-top .val{font-family:var(--mono);font-size:17px;color:var(--cyan);font-weight:800}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;border-radius:2px;background:#e2ecf5;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:#fff;border:2px solid var(--cyan);cursor:pointer;box-shadow:0 1px 5px rgba(14,116,144,.35)}
+.scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px;font-weight:700;color:#4d6f8c;margin-top:6px}
+.btn{width:100%;padding:11px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:800;letter-spacing:1px;
+  border:1px solid rgba(14,116,144,.35);background:rgba(14,116,144,.08);color:#0b5b70;transition:.18s;font-family:inherit}
+.btn:hover{background:rgba(14,116,144,.15);box-shadow:0 3px 12px rgba(14,116,144,.14)}
+.btn.warn{border-color:rgba(190,18,60,.32);background:rgba(190,18,60,.06);color:#a5123a}
+.btn.warn:hover{background:rgba(190,18,60,.12);box-shadow:0 3px 12px rgba(190,18,60,.14)}
+.btn.ghost{border-color:var(--line);background:#fff;color:#3c5872;font-weight:700}
+.btn.ghost:hover{border-color:var(--cyan-dim);color:var(--cyan)}
+.btn+.btn{margin-top:8px}
+.note{font-size:13px;font-weight:600;line-height:1.7;color:#3f607c;margin-top:10px;font-family:var(--mono)}
+/* readouts */
+.readout{padding:4px 12px 12px}
+.ro{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px dashed #e8f0f7;font-size:13px;font-weight:600}
+.ro:last-child{border-bottom:0}
+.ro span:first-child{color:#3c5872;font-weight:600}
+.ro b{font-family:var(--mono);font-size:15px;color:#0b2740;font-weight:800}
+.ro b.cy{color:var(--cyan)} .ro b.am{color:var(--amber)} .ro b.rd{color:var(--red)} .ro b.gr{color:var(--green)}
+/* ---------- stage ---------- */
+.stage{position:relative;background:radial-gradient(circle at 50% 45%,#ffffff 0%,#f4f9fd 62%,#eaf3fa 100%);
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(15,40,70,.05)}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+.stage-badge{position:absolute;top:12px;right:12px;z-index:3;font-family:var(--mono);font-size:13px;font-weight:800;
+  letter-spacing:1px;padding:5px 11px;border-radius:4px;border:1px solid rgba(14,116,144,.35);
+  background:rgba(255,255,255,.88);color:var(--cyan);backdrop-filter:blur(4px)}
+.stage-badge.red{border-color:rgba(190,18,60,.4);color:#be123c;background:rgba(255,244,246,.92);box-shadow:0 2px 12px rgba(190,18,60,.10)}
+.stage-badge.amber{border-color:rgba(180,83,9,.35);color:var(--amber);background:rgba(255,251,235,.92)}
+.stage-tag{position:absolute;top:12px;left:12px;z-index:3;font-family:var(--mono);font-size:12px;font-weight:700;color:#4d6f8c;
+  letter-spacing:1.4px;color:#9db2c4}
+.stage-foot{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:linear-gradient(0deg,rgba(255,255,255,.97),rgba(255,255,255,.62) 70%,transparent)}
+.stage-foot .btn{width:auto;flex:0 0 auto;padding:9px 18px}
+.hint{font-family:var(--mono);font-size:12.5px;font-weight:600;color:#44647f;letter-spacing:.8px;margin-left:auto;text-align:right;line-height:1.6}
+/* ---------- right ---------- */
+.chart-box{position:relative;height:208px;padding:6px 8px 2px}
+#specChart{width:100%;height:100%;display:block}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
+.metric{background:#fff;padding:9px 11px}
+.metric .k{font-family:var(--mono);font-size:11.5px;font-weight:800;letter-spacing:.9px;color:#3c5872;text-transform:uppercase}
+.metric .v{font-family:var(--mono);font-size:22px;font-weight:800;color:#0b2740;margin-top:3px}
+.metric .v small{font-size:12px;color:#3c5872;font-weight:700;margin-left:2px}
+.metric.hot .v{color:var(--cyan)} .metric.alarm .v{color:var(--red)} .metric.warnv .v{color:var(--amber)}
+.log{padding:8px 11px;font-family:var(--mono);font-size:12.5px;font-weight:600;line-height:1.9;color:#2e4a64;
+  flex:1;min-height:0;overflow:hidden}
+.log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log .t{color:#5a7c99;font-weight:700;margin-right:6px}
+.log .ok{color:var(--green)} .log .warnl{color:var(--amber)} .log .alarm{color:#be123c}
+/* ---------- footer ---------- */
+.foot{display:flex;align-items:center;gap:14px;padding:12px 18px;border-top:1px solid var(--line);
+  background:rgba(255,255,255,.95);font-size:15px;font-weight:700}
+.foot .lbl{font-family:var(--mono);font-size:11.5px;font-weight:800;letter-spacing:1.2px;color:var(--cyan);
+  border:1px solid rgba(14,116,144,.3);padding:3px 7px;border-radius:3px;flex:0 0 auto;background:rgba(14,116,144,.05)}
+.foot .txt{color:#2e4a64;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.foot .keys{font-family:var(--mono);font-size:11.5px;font-weight:700;color:#44647f;letter-spacing:.8px;flex:0 0 auto}
+@media (max-width:1180px){
+  .grid{grid-template-columns:250px minmax(0,1fr) 320px}
+  .brand p{display:none}
+}
+@media (max-width:920px){
+  body{overflow:auto}
+  .grid{grid-template-columns:1fr;height:auto}
+  .stage{height:56vh}
+  .col{min-height:auto}
+}
+</style>
+</head>
+<body>
+
+<header class="hud-top">
+  <div class="brand">
+    <div class="emblem">AIE</div>
+    <div style="min-width:0">
+      <h1>聚集诱导发光聚合物 · 爆炸物荧光传感仿真沙盘</h1>
+      <p>AGGREGATION-INDUCED EMISSION / TACTICAL INTERACTIVE COURSEWARE · 讲课比赛决赛课件</p>
+    </div>
+  </div>
+  <div class="top-right">
+    <span class="chip ok">● 离线运行</span>
+    <span class="chip">零外部依赖</span>
+    <button class="ghost-btn" id="fsBtn">全屏 F</button>
+  </div>
+</header>
+
+<main class="grid">
+
+  <!-- ============ LEFT ============ -->
+  <aside class="col">
+    <section class="card">
+      <div class="card-h"><span>MODULE <b>SELECT</b></span><span id="modCount">01 / 04</span></div>
+      <div class="tabs" id="tabs">
+        <button class="tab on" data-mod="1">
+          <span class="no">01</span>
+          <span><span class="tt">分子内旋转受限 RIR</span><span class="sub">TPE · 聚集 → 发光</span></span>
+        </button>
+        <button class="tab" data-mod="2">
+          <span class="no">02</span>
+          <span><span class="tt">温敏门控 LCST</span><span class="sub">NIPAm 链塌缩 · 距离拉近</span></span>
+        </button>
+        <button class="tab" data-mod="3">
+          <span class="no">03</span>
+          <span><span class="tt">光诱导电子转移 PET</span><span class="sub">能级 · 电子改道</span></span>
+        </button>
+        <button class="tab" data-mod="4">
+          <span class="no">04</span>
+          <span><span class="tt">投料比 · 光谱与检出限</span><span class="sub">DDBV 1%–10% · ppb 级</span></span>
+        </button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><span>CONTROL <b>PANEL</b></span><span id="ctlCode">RIR</span></div>
+      <div class="ctl-wrap">
+        <!-- m1 -->
+        <div class="ctl on" data-ctl="1">
+          <div class="row">
+            <div class="row-top"><label>聚集程度 / 环境黏度</label><span class="val" id="vAgg">8%</span></div>
+            <input type="range" id="sAgg" min="0" max="100" value="8">
+            <div class="scale"><span>0% 稀溶液</span><span>100% 聚集态</span></div>
+          </div>
+          <p class="note">拖动滑块：聚集度↑ → 苯环自由旋转被空间位阻“锁死” → 非辐射通道关闭 → 荧光开启。</p>
+        </div>
+        <!-- m2 -->
+        <div class="ctl" data-ctl="2">
+          <div class="row">
+            <div class="row-top"><label>环境温度</label><span class="val" id="vTemp">24.0 ℃</span></div>
+            <input type="range" id="sTemp" min="20" max="40" step="0.5" value="24">
+            <div class="scale"><span>20 ℃</span><span style="color:#8a5a12">LCST 32 ℃</span><span>40 ℃</span></div>
+          </div>
+          <p class="note">低于 LCST 链段舒展；跨越 32 ℃ 链段塌缩，把目标分子强行拉近至识别距离内。</p>
+        </div>
+        <!-- m3 -->
+        <div class="ctl" data-ctl="3">
+          <button class="btn" id="btnPulse">激发光子 hν</button>
+          <button class="btn ghost" id="btnGate">切换门控状态</button>
+          <p class="note">看电子走向：激发 → 聚合物 LUMO → 目标物 LUMO（PET）→ 无辐射复合，光子发不出来。</p>
+        </div>
+        <!-- m4 -->
+        <div class="ctl" data-ctl="4">
+          <div class="row">
+            <div class="row-top"><label>DDBV 单体投料比</label><span class="val" id="vRatio">3.0%</span></div>
+            <input type="range" id="sRatio" min="1" max="10" step="0.5" value="3">
+            <div class="scale"><span>1%</span><span>10%</span></div>
+          </div>
+          <p class="note">投料比↑ → 发光单元密度↑、发射峰红移 → 检出限下降，但过高会引起自吸收。</p>
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn warn" id="btnSample">滴加爆炸物 / TNT</button>
+          <button class="btn ghost" id="btnReset">复位 R</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="flex:1;min-height:0;display:flex;flex-direction:column">
+      <div class="card-h"><span>LIVE <b>READOUT</b></span><span id="roCode">RT-01</span></div>
+      <div class="readout" id="readout"></div>
+    </section>
+  </aside>
+
+  <!-- ============ CENTER ============ -->
+  <section class="stage">
+    <canvas id="scene"></canvas>
+    <div class="stage-tag" id="stageTag">SCENE // 01 · MOLECULAR DYNAMICS</div>
+    <div class="stage-badge" id="stageBadge">待机</div>
+    <div class="stage-foot">
+      <button class="btn warn" id="btnSample2">滴加爆炸物</button>
+      <div class="hint">鼠标拖动滑块实时仿真 · 空格键滴加样品<br>数字键 1–4 切换模块 · R 复位</div>
+    </div>
+  </section>
+
+  <!-- ============ RIGHT ============ -->
+  <aside class="col">
+    <section class="card">
+      <div class="card-h"><span id="chartTitle">PL <b>EMISSION SPECTRUM</b></span><span id="chartTag">实时</span></div>
+      <div class="chart-box"><canvas id="specChart"></canvas></div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><span>KEY <b>METRICS</b></span><span>σ = 3σ/S</span></div>
+      <div class="metrics">
+        <div class="metric hot"><div class="k">PL 强度</div><div class="v" id="mPL">100.0<small>%</small></div></div>
+        <div class="metric alarm"><div class="k">猝灭效率</div><div class="v" id="mQ">0.0<small>%</small></div></div>
+        <div class="metric"><div class="k">检出限 LOD</div><div class="v" id="mLod">—<small>ppb</small></div></div>
+        <div class="metric"><div class="k">发射峰 λmax</div><div class="v" id="mLam">—<small>nm</small></div></div>
+      </div>
+    </section>
+
+    <section class="card" style="flex:1;min-height:0;display:flex;flex-direction:column">
+      <div class="card-h"><span>EVENT <b>LOG</b></span><span id="clock">T+00:00</span></div>
+      <div class="log" id="log"></div>
+    </section>
+  </aside>
+</main>
+
+<footer class="foot">
+  <span class="lbl">讲解要点</span>
+  <span class="txt" id="script">分子一挤，旋转停摆，能量无处可逃，只能变成光子——这就是 AIE 的物理实质。</span>
+  <span class="keys">1–4 模块 · ␣ 样品 · R 复位 · F 全屏</span>
+</footer>
+
+<script>
+"use strict";
+/* ================= 常量与状态 ================= */
+const LCST = 32, MOL_CACO3 = 100.09;
+const state = {
+  module: 1,
+  agg: 8,          // 聚集度 %
+  temp: 24,        // ℃
+  ratio: 3,        // DDBV %
+  q: 0,            // 猝灭进度 0..1（动画值）
+  qTarget: 0,
+  sample: false,   // 是否已加入样品
+  gateOverride: null // 模块3手动门控（null=跟随温度）
+};
+
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp = (a,b,t)=>a+(b-a)*t;
+const fmt = (v,d=1)=>Number(v).toFixed(d);
+
+/* ================= 物理派生量（同源于课件公式） ================= */
+// 聚集度 → 荧光强度（S 形开启曲线）
+const plFromAgg = a => 1/(1+Math.exp(-(a/100-0.42)/0.10));
+// 温度 → 链段塌缩度（LCST 门控）
+const coilFromTemp = T => 1/(1+Math.exp(-(T-LCST)/0.85));
+// 投料比 → 检出限（ppb）
+const lodFromRatio = r => 140/Math.pow(r,1.55);
+// 投料比 → 发射峰位（红移）
+const lamFromRatio = r => 452 + 2.9*(r-1);
+// 当前有效 PL 强度（0..1）
+const plNow = () => {
+  const gate = 1 - 0.942*state.q;      // 电子转移猝灭
+  const base = state.module === 1 ? plFromAgg(state.agg) : (1 - 0.9*coilFromTemp(state.temp));
+  return clamp(base*gate, 0, 1);
+};
+const gateOpen = () => (state.gateOverride === null ? coilFromTemp(state.temp) > 0.5 : state.gateOverride);
+
+/* ================= 画布工具 ================= */
+function fit(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const r = cv.getBoundingClientRect();
+  const w = Math.max(1, r.width), h = Math.max(1, r.height);
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w,h};
+}
+const sceneCv = $('#scene'), specCv = $('#specChart');
+let S = {ctx:null,w:0,h:0}, C = {ctx:null,w:0,h:0};
+function refit(){
+  S = fit(sceneCv);
+  C = fit(specCv);
+}
+window.addEventListener('resize', refit);
+
+/* 伪三维投影（pk：景深系数，防止分母为负） */
+function proj(p, ry, unit, cx, cy, pk){
+  pk = pk === undefined ? 0.05 : pk;
+  const c = Math.cos(ry), s = Math.sin(ry);
+  const x = p.x*c - p.z*s;
+  const z = p.x*s + p.z*c;
+  const k = 1/Math.max(0.4, 1 + z*pk);
+  return { x: cx + x*unit*k, y: cy - p.y*unit*k, s: k, z };
+}
+
+/* ================= 场景一：TPE 分子内旋转 ================= */
+const TPE = (()=>{
+  const rings = [];
+  const th = 62*Math.PI/180;      // 与中心双键夹角
+  const conf = [
+    {cx:-0.55, phi:0},   {cx:-0.55, phi:Math.PI},
+    {cx: 0.55, phi:Math.PI/2}, {cx: 0.55, phi:-Math.PI/2}
+  ];
+  conf.forEach((c,i)=>{
+    const sx = c.cx < 0 ? -1 : 1;
+    const dir = {x: sx*Math.cos(th), y: Math.sin(th)*Math.cos(c.phi), z: Math.sin(th)*Math.sin(c.phi)};
+    rings.push({attach:{x:c.cx,y:0,z:0}, dir, spin: i*1.7, ph:i});
+  });
+  return rings;
+})();
+
+function drawMolecule(ctx,w,h,t){
+  const agg = state.agg/100;
+  const I = plFromAgg(state.agg);
+  const cx = w/2, cy = h*0.5, unit = Math.min(w,h)*0.135;
+  const ry = t*0.28;
+
+  /* 背景辉光（聚集后爆发） */
+  if(I > 0.02){
+    const R = Math.min(w,h)*(0.20 + 0.30*I);
+    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,R);
+    g.addColorStop(0,`rgba(56,189,248,${0.32*I})`);
+    g.addColorStop(0.45,`rgba(125,211,252,${0.24*I})`);
+    g.addColorStop(1,'rgba(224,242,254,0)');
+    ctx.save(); ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  const spinSpeed = 0.055*(1-Math.pow(agg,1.3)) + 0.004;
+  const parts = [];
+
+  // 中心 C=C
+  const c1 = proj({x:-0.55,y:0,z:0}, ry, unit, cx, cy);
+  const c2 = proj({x: 0.55,y:0,z:0}, ry, unit, cx, cy);
+  const n1 = proj({x:-0.30,y:0.10,z:0}, ry, unit, cx, cy);
+  const n2 = proj({x: 0.30,y:-0.10,z:0}, ry, unit, cx, cy);
+
+  // 每个苯环计算顶点
+  TPE.forEach(r=>{
+    r.spin += spinSpeed*(1 + r.ph*0.18);
+    const c = {x: r.attach.x + 1.05*r.dir.x, y: r.attach.y + 1.05*r.dir.y, z: r.attach.z + 1.05*r.dir.z};
+    // 正交基
+    const up = {x:0,y:1,z:0};
+    let p0 = { x: r.dir.y*up.z - r.dir.z*up.y, y: r.dir.z*up.x - r.dir.x*up.z, z: r.dir.x*up.y - r.dir.y*up.x };
+    const ln = Math.hypot(p0.x,p0.y,p0.z) || 1; p0 = {x:p0.x/ln,y:p0.y/ln,z:p0.z/ln};
+    const p1 = { x: r.dir.y*p0.z - r.dir.z*p0.y, y: r.dir.z*p0.x - r.dir.x*p0.z, z: r.dir.x*p0.y - r.dir.y*p0.x };
+    const ca = Math.cos(r.spin), sa = Math.sin(r.spin);
+    const wv = { x: p0.x*ca + p1.x*sa, y: p0.y*ca + p1.y*sa, z: p0.z*ca + p1.z*sa };
+    const rr = 0.60, pts = [];
+    for(let k=0;k<6;k++){
+      const ang = k*Math.PI/3;
+      const pt = { x:c.x + rr*(Math.cos(ang)*r.dir.x + Math.sin(ang)*wv.x),
+                   y:c.y + rr*(Math.cos(ang)*r.dir.y + Math.sin(ang)*wv.y),
+                   z:c.z + rr*(Math.cos(ang)*r.dir.z + Math.sin(ang)*wv.z) };
+      pts.push(proj(pt, ry, unit, cx, cy));
+    }
+    const center = proj(c, ry, unit, cx, cy);
+    parts.push({pts, center, attach: proj(r.attach, ry, unit, cx, cy), depth: center.z});
+  });
+
+  parts.sort((a,b)=>a.depth-b.depth); // 远 → 近
+
+  /* 键 */
+  ctx.lineCap='round';
+  const bondCol = `rgba(100,116,139,${0.78+0.18*I})`;
+  ctx.strokeStyle = bondCol; ctx.lineWidth = 3.2;
+  ctx.beginPath(); ctx.moveTo(c1.x,c1.y); ctx.lineTo(c2.x,c2.y); ctx.stroke();
+  ctx.lineWidth = 1.6; ctx.strokeStyle = `rgba(148,163,184,.75)`;
+  ctx.beginPath(); ctx.moveTo(n1.x,n1.y); ctx.lineTo(n2.x,n2.y); ctx.stroke();
+
+  parts.forEach(p=>{
+    ctx.strokeStyle = bondCol; ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.moveTo(p.attach.x,p.attach.y); ctx.lineTo(p.center.x,p.center.y); ctx.stroke();
+    // 环
+    ctx.beginPath();
+    p.pts.forEach((v,i)=> i? ctx.lineTo(v.x,v.y) : ctx.moveTo(v.x,v.y));
+    ctx.closePath();
+    ctx.fillStyle = `rgba(14,165,233,${0.12+0.18*I})`; ctx.fill();
+    ctx.strokeStyle = `rgba(2,132,199,${0.82+0.18*I})`; ctx.lineWidth = 1.9; ctx.stroke();
+    // 环内亮点
+    ctx.save(); ctx.globalCompositeOperation='source-over';
+    const rg = ctx.createRadialGradient(p.center.x,p.center.y,0,p.center.x,p.center.y,26+18*I);
+    rg.addColorStop(0,`rgba(14,165,233,${0.20+0.30*I})`); rg.addColorStop(1,'rgba(14,165,233,0)');
+    ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(p.center.x,p.center.y,26+18*I,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+
+  /* 中心亮核 */
+  ctx.save(); ctx.globalCompositeOperation='source-over';
+  const cg = ctx.createRadialGradient(cx,cy,0,cx,cy,20+30*I);
+  cg.addColorStop(0,`rgba(255,255,255,.95)`); cg.addColorStop(1,'rgba(125,211,252,0)');
+  ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(cx,cy,20+30*I,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  /* 发光光子粒子 */
+  if(I > 0.15){
+    ctx.save(); ctx.globalCompositeOperation='source-over';
+    for(let i=0;i<22;i++){
+      const a = i*1.7 + t*0.9;
+      const d = 70 + ((t*70 + i*37) % 190);
+      const alpha = (1 - d/270)*0.75*I;
+      const x = cx + Math.cos(a)*d, y = cy + Math.sin(a)*d*0.72;
+      ctx.fillStyle = `rgba(2,132,199,${alpha})`;
+      ctx.beginPath(); ctx.arc(x,y,1.6+1.4*I,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* 角标文字（置于左上，避开底部操作栏） */
+  ctx.font='bold 15px ui-monospace,monospace';
+  ctx.fillStyle='rgba(26,52,76,.98)';
+  ctx.fillText('TPE CORE  C=C', 18, 52);
+  ctx.fillText(`ROTATION  ω = ${(spinSpeed*60).toFixed(2)} rad/s`, 18, 76);
+  ctx.fillStyle = I>0.5 ? 'rgba(3,102,158,1)' : 'rgba(38,60,82,.96)';
+  ctx.fillText(`EMISSION  ${(I*100).toFixed(1)} %`, 18, 100);
+}
+
+/* ================= 场景二：温敏链塌缩 ================= */
+const CHAIN_N = 30;
+const FLUOR = [4, 13, 22];
+function chainPts(coil, t, w, h){
+  const spread = Math.min(w*0.40, 320);
+  const R = Math.min(w,h)*0.15;
+  const out = [];
+  for(let i=0;i<CHAIN_N;i++){
+    const u = i/(CHAIN_N-1);
+    const ex = { x:(u-0.5)*2*spread, y:Math.sin(u*Math.PI*2.3)*spread*0.15, z:Math.cos(u*Math.PI*1.6)*spread*0.13 };
+    const ga = i*2.399963;
+    const rr = R*(0.45 + 0.55*Math.cbrt(0.15+0.85*u));
+    const col = { x: rr*Math.sin(ga)*1.0, y: rr*Math.cos(ga*1.7)*0.92, z: rr*Math.sin(ga*2.3)*0.8 };
+    const wig = Math.sin(t*2.6 + i*0.9)*(1-0.55*coil)*6;
+    out.push({ x: lerp(ex.x,col.x,coil)+wig, y: lerp(ex.y,col.y,coil)+wig*0.5, z: lerp(ex.z,col.z,coil) });
+  }
+  return out;
+}
+
+function drawChain(ctx,w,h,t){
+  const coil = coilFromTemp(state.temp);
+  const open = gateOpen();
+  const q = state.q;
+  const cx=w/2, cy=h*0.5;
+  const ry = 0.35*Math.sin(t*0.16);
+  const unit = 1;
+  const pts = chainPts(coil, t, w, h).map(p=>{
+    const pr = proj(p, ry, unit, cx, cy, 0.0012);
+    return {...pr, z:p.z};
+  });
+
+  /* 链段 */
+  ctx.lineCap='round';
+  for(let i=0;i<pts.length-1;i++){
+    const a=pts[i], b=pts[i+1];
+    const dep = (a.s+b.s)/2;
+    ctx.strokeStyle = `rgba(100,116,139,${0.5+0.35*dep})`;
+    ctx.lineWidth = 3.4*dep;
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  }
+  /* 珠子 */
+  pts.forEach((p,i)=>{
+    const isF = FLUOR.includes(i);
+    const r = (isF?7.5:5)*p.s;
+    const g = ctx.createRadialGradient(p.x-r*0.3,p.y-r*0.3,0,p.x,p.y,r*2.1);
+    if(isF){
+      const bright = clamp(1-0.9*coil-0.5*q,0,1);
+      g.addColorStop(0,`rgba(255,255,255,${0.8+0.2*bright})`);
+      g.addColorStop(0.4,`rgba(6,182,212,${0.5+0.45*bright})`);
+      g.addColorStop(1,'rgba(6,182,212,0)');
+    }else{
+      g.addColorStop(0,'rgba(255,255,255,1)');
+      g.addColorStop(0.5,'rgba(203,213,225,.98)');
+      g.addColorStop(1,'rgba(148,163,184,0)');
+    }
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(p.x,p.y,r*2.1,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = isF ? 'rgba(6,105,128,1)' : 'rgba(71,85,105,.95)';
+    ctx.beginPath(); ctx.arc(p.x,p.y,r*0.55,0,Math.PI*2); ctx.fill();
+  });
+
+  /* 荧光团背景光晕 + 目标分子 */
+  const dist = 1.8 + 7.4*(1-coil);   // nm 级相对距离
+  FLUOR.forEach((idx,fi)=>{
+    const base = pts[idx];
+    if(!base) return;
+    const bright = clamp(1-0.9*coil-0.35*(state.sample?q:0),0,1);
+    ctx.save(); ctx.globalCompositeOperation='source-over';
+    const R = 16+26*bright;
+    const gg = ctx.createRadialGradient(base.x,base.y,0,base.x,base.y,R);
+    gg.addColorStop(0,`rgba(34,211,238,${0.32*bright})`);
+    gg.addColorStop(1,'rgba(14,165,233,0)');
+    ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(base.x,base.y,R,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    if(!state.sample) return;
+    /* TNT 六边形：距离由 coil 决定 */
+    const ang = fi*2.1 + 0.6*Math.sin(t*0.5+fi);
+    const dd = (26 + 105*(1-coil));
+    const tx = base.x + Math.cos(ang)*dd*0.85;
+    const ty = base.y + Math.sin(ang)*dd*0.62;
+
+    ctx.save();
+    ctx.translate(tx,ty); ctx.rotate(t*0.4+fi);
+    ctx.beginPath();
+    for(let k=0;k<6;k++){
+      const a = k*Math.PI/3;
+      const px = Math.cos(a)*9, py = Math.sin(a)*9;
+      k? ctx.lineTo(px,py) : ctx.moveTo(px,py);
+    }
+    ctx.closePath();
+    ctx.fillStyle='rgba(255,255,255,.96)';
+    ctx.strokeStyle='rgba(158,80,4,1)'; ctx.lineWidth=1.5; ctx.fill(); ctx.stroke();
+    ctx.restore();
+    ctx.font='bold 11px ui-monospace,monospace';
+    ctx.fillStyle='rgba(140,62,5,1)';
+    ctx.fillText('TNT', tx-9, ty+20);
+
+    /* 红色电子转移连线 */
+    const near = (1-coil);
+    if(near > 0.35 && state.sample && q > 0.05){
+      const pulse = 0.45 + 0.55*Math.abs(Math.sin(t*4+fi));
+      ctx.save();
+      ctx.setLineDash([4,5]); ctx.lineDashOffset = -t*22;
+      ctx.strokeStyle = `rgba(225,29,72,${0.35+0.5*near*pulse})`;
+      ctx.lineWidth = 1.6 + near;
+      ctx.beginPath(); ctx.moveTo(base.x,base.y); ctx.lineTo(tx,ty); ctx.stroke();
+      ctx.restore();
+      // 电子点
+      const et = (t*0.9+fi*0.3)%1;
+      const ex = lerp(base.x,tx,et), ey = lerp(base.y,ty,et);
+      ctx.fillStyle=`rgba(225,29,72,${0.9*pulse})`;
+      ctx.beginPath(); ctx.arc(ex,ey,2.6,0,Math.PI*2); ctx.fill();
+    }
+  });
+
+  /* 温度标尺（置于左上，避开底部操作栏） */
+  const barX = 22, barY = 118, barH = 26;
+  ctx.font='bold 14px ui-monospace,monospace';
+  ctx.fillStyle='rgba(26,52,76,.98)';
+  ctx.fillText(`T = ${state.temp.toFixed(1)} ℃   ${state.temp>=LCST?'＞ LCST · 链段塌缩':'＜ LCST · 链段舒展'}`,barX, barY-8);
+  ctx.fillStyle='rgba(203,213,225,.98)';
+  ctx.fillRect(barX,barY,120,3);
+  const tt = clamp((state.temp-20)/20,0,1);
+  ctx.fillStyle = state.temp>=LCST ? 'rgba(190,18,60,1)' : 'rgba(6,105,128,1)';
+  ctx.fillRect(barX,barY,120*tt,3);
+  ctx.fillStyle='rgba(52,76,98,.95)';
+  ctx.fillText('20', barX-2, barY+20); ctx.fillText('32', barX+120*0.6-6, barY+20); ctx.fillText('40', barX+114, barY+20);
+  ctx.fillStyle='rgba(26,52,76,.98)';
+  ctx.fillText(`R_g = ${(8.4*(1-0.62*coil)).toFixed(2)} nm     d(荧光团–TNT) = ${dist.toFixed(2)} nm`, barX, barY+48);
+}
+
+/* ================= 场景三：PET 能级图 ================= */
+let petPhase = 0;
+function drawPET(ctx,w,h,t){
+  const open = gateOpen();                  // 门控：链段是否收缩（=能否识别）
+  const active = open;                      // PET 通路是否打开
+  const cx = w*0.5, cy = h*0.5;
+  const padL = w*0.10, padR = w*0.90;
+  const yHOMO = h*0.66, yLUMO = h*0.40, yTNT = h*0.52;
+
+  /* 网格 */
+  ctx.strokeStyle='rgba(226,235,245,.95)'; ctx.lineWidth=1;
+  for(let x=padL;x<=padR;x+=40){ ctx.beginPath(); ctx.moveTo(x,h*0.12); ctx.lineTo(x,h*0.95); ctx.stroke(); }
+
+  /* 左侧：聚合物能级 */
+  const pL0 = padL, pL1 = padL + w*0.24;
+  ctx.strokeStyle='rgba(6,105,128,1)'; ctx.lineWidth=2.4;
+  ctx.beginPath(); ctx.moveTo(pL0,yHOMO); ctx.lineTo(pL1,yHOMO); ctx.stroke();
+  ctx.setLineDash([7,5]); ctx.strokeStyle='rgba(6,105,128,.85)';
+  ctx.beginPath(); ctx.moveTo(pL0,yLUMO); ctx.lineTo(pL1,yLUMO); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font='bold 13px ui-monospace,monospace'; ctx.fillStyle='rgba(6,105,128,1)';
+  ctx.fillText('聚合物 LUMO', pL0, yLUMO-10);
+  ctx.fillText('聚合物 HOMO', pL0, yHOMO+16);
+
+  /* 右侧：TNT 能级 */
+  const tL0 = padR - w*0.24, tL1 = padR;
+  ctx.strokeStyle='rgba(158,80,4,1)'; ctx.lineWidth=2.4;
+  ctx.beginPath(); ctx.moveTo(tL0,yTNT); ctx.lineTo(tL1,yTNT); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(tL0,yHOMO+20); ctx.lineTo(tL1,yHOMO+20); ctx.stroke();
+  ctx.fillStyle='rgba(158,80,4,1)';
+  ctx.fillText('TNT LUMO', tL0, yTNT-10);
+  ctx.fillText('TNT HOMO', tL0, yHOMO+36);
+
+  /* 激发箭头（紫外） */
+  const ex = pL0 + 30, yBot = h*0.93;
+  const beam = 0.5+0.5*Math.sin(t*3);
+  ctx.strokeStyle=`rgba(91,33,182,${0.7+0.3*beam})`; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(ex,yBot); ctx.lineTo(ex,yLUMO+4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ex-5,yLUMO+12); ctx.lineTo(ex,yLUMO+2); ctx.lineTo(ex+5,yLUMO+12); ctx.stroke();
+  ctx.fillStyle='rgba(91,33,182,1)'; ctx.font='bold 13px ui-monospace,monospace';
+  ctx.fillText('hν  紫外激发', ex+10, yBot-6);
+
+  /* 电子循环 */
+  const cyc = 4.0; // 周期 s
+  const ph = active ? (t%cyc)/cyc : 0;
+  let ePos;
+  if(!active){ ePos = null; }
+  else if(ph < 0.28){            // 跃迁至 LUMO
+    const k = ph/0.28;
+    ePos = {x: ex, y: lerp(yBot,yLUMO,k)};
+  } else if(ph < 0.60){          // PET 转移
+    const k = (ph-0.28)/0.32;
+    const x = lerp(ex, tL0+30, k);
+    ePos = {x, y: lerp(yLUMO,yTNT,k)};
+    ctx.save(); ctx.setLineDash([4,5]); ctx.lineDashOffset=-t*30;
+    ctx.strokeStyle='rgba(225,29,72,.6)'; ctx.lineWidth=1.8;
+    ctx.beginPath(); ctx.moveTo(ex,yLUMO); ctx.lineTo(tL0+30,yTNT); ctx.stroke(); ctx.restore();
+  } else if(ph < 0.9){           // 无辐射回落
+    const k = (ph-0.60)/0.30;
+    ePos = {x: tL0+30, y: lerp(yTNT,yHOMO+20,k)};
+    ctx.strokeStyle='rgba(225,29,72,.65)'; ctx.lineWidth=1.4;
+    ctx.beginPath();
+    for(let yy=0;yy<1;yy+=0.1){
+      const px = tL0+30 + Math.sin(yy*28)*4;
+      const py = lerp(yTNT,yHOMO+20,yy);
+      yy? ctx.lineTo(px,py): ctx.moveTo(px,py);
+    }
+    ctx.stroke();
+  } else { ePos = {x: tL0+30, y: yHOMO+20}; }
+
+  /* 辐射跃迁（未识别时的竞争通路） */
+  if(!active){
+    const k = 0.5+0.5*Math.sin(t*2.2);
+    ctx.strokeStyle=`rgba(8,145,178,${0.55+0.4*k})`; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(pL1-40,yLUMO); ctx.lineTo(pL1-40,yBot); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pL1-45,yBot-8); ctx.lineTo(pL1-40,yBot-1); ctx.lineTo(pL1-35,yBot-8); ctx.stroke();
+    ctx.fillStyle='rgba(6,105,128,1)'; ctx.font='bold 13px ui-monospace,monospace';
+    ctx.fillText('荧光 hν′', pL1-30, yBot-14);
+  }
+
+  if(ePos){
+    ctx.save();
+    ctx.globalCompositeOperation='source-over';
+    const g = ctx.createRadialGradient(ePos.x,ePos.y,0,ePos.x,ePos.y,16);
+    g.addColorStop(0,'rgba(251,191,36,.6)'); g.addColorStop(1,'rgba(245,158,11,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(ePos.x,ePos.y,16,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle='#f59e0b'; ctx.beginPath(); ctx.arc(ePos.x,ePos.y,3.4,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.lineWidth=1; ctx.stroke();
+  }
+
+  /* 说明文字 */
+  ctx.font='bold 13.5px ui-monospace,monospace';
+  ctx.fillStyle = active ? 'rgba(158,12,50,1)' : 'rgba(6,105,128,1)';
+  ctx.fillText(active ? 'PET 通路开启 · 电子被目标物截走 · 无辐射复合' : '辐射跃迁主导 · 荧光正常发射', padL, h*0.155);
+  ctx.fillStyle='rgba(26,52,76,.96)'; ctx.font='bold 13px ui-monospace,monospace';
+  ctx.fillText('ΔG_PET ≈ −0.70 eV  (聚合物 LUMO 高于 TNT LUMO)', padL, h*0.19);
+  ctx.textAlign='right';
+  ctx.fillText(`k_PET / k_r ≈ ${active?  '38 : 1' : '0.02 : 1'}`, padR, h*0.155);
+  ctx.textAlign='left';
+}
+
+/* ================= 光谱绘制 ================= */
+function spectrumData(ratio, q){
+  const lam0 = lamFromRatio(ratio);
+  const amp = 1 - 0.942*q;
+  const pts = [];
+  for(let l=380;l<=620;l+=2){
+    const g1 = Math.exp(-Math.pow(l-lam0,2)/(2*17*17));
+    const g2 = 0.20*Math.exp(-Math.pow(l-(lam0+56),2)/(2*28*28));
+    const g3 = 0.09*Math.exp(-Math.pow(l-(lam0-72),2)/(2*30*30));
+    pts.push({ l, y: Math.max(0.012,(g1+g2+g3))*amp });
+  }
+  return { pts, lam0, amp };
+}
+
+function drawSpectrum(ctx,w,h,data,big){
+  const padL = big? 58:42, padR = big? 26:12, padT = big? 30:22, padB = big? 92:28;
+  const x0 = padL, x1 = w-padR, y0 = padT, y1 = h-padB;
+  const X = l => x0 + (l-380)/(620-380)*(x1-x0);
+  const Y = v => y1 - clamp(v,0,1.06)/1.06*(y1-y0);
+
+  ctx.clearRect(0,0,w,h);
+  /* 网格 */
+  ctx.font = big? 'bold 13px ui-monospace,monospace':'bold 11.5px ui-monospace,monospace';
+  for(let l=380;l<=620;l+=40){
+    ctx.strokeStyle='rgba(226,235,245,.95)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(X(l),y0); ctx.lineTo(X(l),y1); ctx.stroke();
+    ctx.fillStyle='rgba(38,60,82,1)'; ctx.textAlign='center';
+    ctx.fillText(String(l), X(l), y1+14);
+  }
+  for(let v=0;v<=1;v+=0.25){
+    ctx.strokeStyle='rgba(226,235,245,.95)';
+    ctx.beginPath(); ctx.moveTo(x0,Y(v)); ctx.lineTo(x1,Y(v)); ctx.stroke();
+    ctx.fillStyle='rgba(38,60,82,1)'; ctx.textAlign='right';
+    ctx.fillText(v.toFixed(2), x0-7, Y(v)+3);
+  }
+  ctx.textAlign='center';
+  if(big){
+    ctx.fillStyle='rgba(38,60,82,1)';
+    ctx.fillText('WAVELENGTH / nm', (x0+x1)/2, y1+34);
+    ctx.save(); ctx.translate(16,(y0+y1)/2); ctx.rotate(-Math.PI/2);
+    ctx.fillText('PL INTENSITY / a.u.',0,0); ctx.restore();
+  }
+  /* 面积填充 */
+  const grd = ctx.createLinearGradient(0,y0,0,y1);
+  grd.addColorStop(0,'rgba(8,145,178,.26)');
+  grd.addColorStop(1,'rgba(8,145,178,0)');
+  ctx.beginPath(); ctx.moveTo(X(380),y1);
+  data.pts.forEach(p=>ctx.lineTo(X(p.l),Y(p.y)));
+  ctx.lineTo(X(620),y1); ctx.closePath(); ctx.fillStyle=grd; ctx.fill();
+  /* 曲线 */
+  ctx.beginPath();
+  data.pts.forEach((p,i)=> i? ctx.lineTo(X(p.l),Y(p.y)) : ctx.moveTo(X(p.l),Y(p.y)));
+  ctx.strokeStyle='#0e7490'; ctx.lineWidth = big?2.4:1.8;
+  ctx.shadowColor='rgba(8,145,178,.32)'; ctx.shadowBlur = big? 14:8;
+  ctx.stroke(); ctx.shadowBlur=0;
+  /* 峰标记 */
+  const pk = data.pts.reduce((a,b)=> b.y>a.y? b:a, data.pts[0]);
+  ctx.save();
+  ctx.setLineDash([3,4]); ctx.strokeStyle='rgba(158,80,4,.8)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(X(pk.l),Y(pk.y)); ctx.lineTo(X(pk.l),y1); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle='rgba(158,80,4,1)';
+  ctx.beginPath(); ctx.arc(X(pk.l),Y(pk.y),3,0,Math.PI*2); ctx.fill();
+  ctx.font = big? 'bold 15px ui-monospace,monospace':'bold 12px ui-monospace,monospace';
+  ctx.textAlign='left';
+  ctx.fillText(`λmax ${data.lam0.toFixed(0)} nm`, Math.min(X(pk.l)+8, x1-80), Y(pk.y)-7);
+}
+
+/* 浓度-响应曲线（模块 4 右侧） */
+function drawResponse(ctx,w,h){
+  const lod = lodFromRatio(state.ratio);
+  const K = lod*2.6;
+  const padL=40, padR=14, padT=22, padB=30;
+  const x0=padL,x1=w-padR,y0=padT,y1=h-padB;
+  const X = c => x0 + (Math.log10(c)+1)/5*(x1-x0);   // 0.1 .. 10000 ppb
+  const Y = v => y1 - v*(y1-y0);
+  ctx.clearRect(0,0,w,h);
+  ctx.font='bold 12px ui-monospace,monospace';
+  for(let d=-1;d<=4;d++){
+    const cx = X(Math.pow(10,d));
+    ctx.strokeStyle='rgba(226,235,245,.95)';
+    ctx.beginPath(); ctx.moveTo(cx,y0); ctx.lineTo(cx,y1); ctx.stroke();
+    ctx.fillStyle='rgba(38,60,82,1)'; ctx.textAlign='center';
+    ctx.fillText(Math.pow(10,d)>=1000? (Math.pow(10,d)/1000)+'k' : String(Math.pow(10,d)), cx, y1+14);
+  }
+  for(let v=0;v<=1.001;v+=0.25){
+    ctx.strokeStyle='rgba(226,235,245,.95)';
+    ctx.beginPath(); ctx.moveTo(x0,Y(v)); ctx.lineTo(x1,Y(v)); ctx.stroke();
+    ctx.fillStyle='rgba(38,60,82,1)'; ctx.textAlign='right';
+    ctx.fillText((v*100).toFixed(0)+'%', x0-6, Y(v)+3);
+  }
+  /* 曲线 */
+  const pts=[];
+  for(let i=0;i<=120;i++){
+    const lg = -1 + i/120*5;
+    const c = Math.pow(10,lg);
+    const eta = 100*c/(c+K);
+    pts.push({x:X(c), y:Y(eta/100)});
+  }
+  ctx.beginPath(); pts.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+  const g = ctx.createLinearGradient(0,y0,0,y1);
+  g.addColorStop(0,'rgba(225,29,72,.16)'); g.addColorStop(1,'rgba(225,29,72,0)');
+  ctx.lineTo(x1,y1); ctx.lineTo(x0,y1); ctx.closePath(); ctx.fillStyle=g; ctx.fill();
+  ctx.beginPath(); pts.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+  ctx.strokeStyle='rgba(158,12,50,1)'; ctx.lineWidth=2; ctx.stroke();
+  /* LOD 标记 */
+  const lx = X(lod);
+  ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='rgba(158,80,4,.9)';
+  ctx.beginPath(); ctx.moveTo(lx,y0); ctx.lineTo(lx,y1); ctx.stroke(); ctx.restore();
+  const etaL = 100*lod/(lod+K);
+  ctx.fillStyle='rgba(158,80,4,1)';
+  ctx.beginPath(); ctx.arc(lx,Y(etaL/100),3.2,0,Math.PI*2); ctx.fill();
+  ctx.textAlign='left';
+  // LOD 标注：白底衬 + 加大加粗，避免压在网格线上看不清
+  const lodTxt = `LOD ${lod.toFixed(1)} ppb`;
+  ctx.font='bold 13px ui-monospace,monospace';
+  const tw = ctx.measureText(lodTxt).width;
+  const bx = Math.min(lx+6, x1-tw-10), by = y0+2;
+  ctx.fillStyle='rgba(255,255,255,.92)';
+  ctx.fillRect(bx-3, by-13, tw+6, 18);
+  ctx.fillStyle='rgba(140,62,5,1)';
+  ctx.fillText(lodTxt, bx, by);
+  ctx.fillStyle='rgba(38,60,82,.96)';
+  ctx.fillText('CONC / ppb (log)', x1-92, h-4);
+}
+
+/* ================= 渲染主循环 ================= */
+let t0 = performance.now();
+function ensureSize(){
+  if(sceneCv.clientWidth !== S.w || sceneCv.clientHeight !== S.h ||
+     specCv.clientWidth !== C.w || specCv.clientHeight !== C.h) refit();
+}
+function frame(now){
+  const t = (now - t0)/1000;
+  ensureSize();
+
+  /* 猝灭动画 */
+  state.q += (state.qTarget - state.q) * Math.min(1, 0.055);
+  if(Math.abs(state.qTarget - state.q) < 0.001) state.q = state.qTarget;
+
+  const {ctx,w,h} = S;
+  if(ctx && w>4){
+    ctx.clearRect(0,0,w,h);
+    if(state.module === 1) drawMolecule(ctx,w,h,t);
+    else if(state.module === 2) drawChain(ctx,w,h,t);
+    else if(state.module === 3) drawPET(ctx,w,h,t);
+    else {
+      const d = spectrumData(state.ratio, state.q);
+      drawSpectrum(ctx,w,h,d,true);
+      ctx.font='bold 13.5px ui-monospace,monospace'; ctx.textAlign='left';
+      ctx.fillStyle='rgba(26,52,76,.98)';
+      ctx.fillText(`DDBV ${state.ratio.toFixed(1)} %   甲苯/水混合体系   25 ℃`, 22, 48);
+    }
+  }
+  const cc = C;
+  if(cc.ctx && cc.w>4){
+    if(state.module === 4) drawResponse(cc.ctx, cc.w, cc.h);
+    else drawSpectrum(cc.ctx, cc.w, cc.h, spectrumData(state.ratio, state.q), false);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ================= UI 更新 ================= */
+function updateMetrics(){
+  const gate = 1 - 0.942*state.q;
+  const base = state.module === 1 ? plFromAgg(state.agg) : (1 - 0.9*coilFromTemp(state.temp));
+  const pl = clamp(base*gate,0,1)*100;
+  const lod = lodFromRatio(state.ratio);
+
+  $('#mPL').innerHTML = `${pl.toFixed(1)}<small>%</small>`;
+  $('#mQ').innerHTML = `${(94.2*state.q).toFixed(1)}<small>%</small>`;
+  $('#mLod').innerHTML = `${lod.toFixed(1)}<small>ppb</small>`;
+  $('#mLam').innerHTML = `${lamFromRatio(state.ratio).toFixed(0)}<small>nm</small>`;
+  $('#mPL').parentElement.classList.toggle('hot', pl>55);
+  $('#mQ').parentElement.classList.toggle('alarm', state.q>0.5);
+
+  /* 状态徽标 */
+  const badge = $('#stageBadge');
+  let txt='待机', cls='';
+  if(state.module===1){
+    txt = state.agg>55? '聚集态 · 荧光开启':'稀溶液 · 无荧光';
+    cls = state.agg>55? '':'amber';
+  } else if(state.module===2){
+    if(!gateOpen()){ txt='门控关闭 · T < 32 ℃'; cls='amber'; }
+    else if(state.q>0.3){ txt='检出目标物 · 荧光猝灭'; cls='red'; }
+    else { txt='门控开启 · 待检测'; }
+  } else if(state.module===3){
+    txt = gateOpen()? 'PET 主导 · 无辐射':'辐射跃迁 · 发光正常';
+    cls = gateOpen()? 'red':'';
+  } else {
+    txt = state.q>0.3? '光谱坍塌 · 已确认':'光谱采集中'; cls = state.q>0.3? 'red':'';
+  }
+  badge.textContent = txt;
+  badge.className = 'stage-badge ' + cls;
+
+  /* 读数区 */
+  const ro = $('#readout');
+  let rows = [];
+  if(state.module===1){
+    const a = state.agg/100;
+    rows = [
+      ['旋转角速度 ω', `${(0.055*(1-Math.pow(a,1.3))+0.004).toFixed(3)} rad/s`, 'cy'],
+      ['荧光强度 I', `${(plFromAgg(state.agg)*100).toFixed(1)} %`, plFromAgg(state.agg)>0.5?'gr':'am'],
+      ['量子产率 Φ', `${(0.6+92*plFromAgg(state.agg)).toFixed(1)} %`, ''],
+      ['非辐射通道', plFromAgg(state.agg)>0.5? '受限 · 关闭':'开放 · 主导', plFromAgg(state.agg)>0.5?'gr':'am']
+    ];
+  } else if(state.module===2){
+    const c = coilFromTemp(state.temp);
+    rows = [
+      ['链段塌缩度', `${(c*100).toFixed(0)} %`, c>0.5?'rd':'cy'],
+      ['回转半径 R_g', `${(8.4*(1-0.62*c)).toFixed(2)} nm`, ''],
+      ['荧光团–目标距离', `${(1.8+7.4*(1-c)).toFixed(2)} nm`, (1.8+7.4*(1-c))<3?'rd':'gr'],
+      ['门控状态', gateOpen()? 'OPEN · 可识别':'CLOSE · 距离过远', gateOpen()?'gr':'am']
+    ];
+  } else if(state.module===3){
+    rows = [
+      ['聚合物 LUMO', '−3.10 eV', 'cy'],
+      ['TNT LUMO', '−3.80 eV', 'am'],
+      ['ΔG_PET', '−0.70 eV', 'rd'],
+      ['k_PET / k_r', gateOpen()? '38 : 1':'0.02 : 1', gateOpen()?'rd':'gr']
+    ];
+  } else {
+    rows = [
+      ['DDBV 投料比', `${state.ratio.toFixed(1)} %`, 'cy'],
+      ['发射峰 λmax', `${lamFromRatio(state.ratio).toFixed(0)} nm`, ''],
+      ['检出限 LOD', `${lodFromRatio(state.ratio).toFixed(1)} ppb`, lodFromRatio(state.ratio)<10?'gr':'am'],
+      ['线性区间', '0.1 – 500 ppb', '']
+    ];
+  }
+  ro.innerHTML = rows.map(r=>`<div class="ro"><span>${r[0]}</span><b class="${r[2]}">${r[1]}</b></div>`).join('');
+}
+
+const SCRIPTS = {
+  1:'分子一挤，旋转停摆，能量无处可逃，只能变成光子——这就是 AIE 的物理实质。',
+  2:'升温跨过 32 ℃，链段急剧塌缩，把目标分子硬拽到荧光团眼前：距离从 6 nm 缩到 1.5 nm，信号被放大。',
+  3:'激发态电子被目标物的 LUMO 截走，辐射跃迁被掐断——猝灭不是变暗，是电子改道。',
+  4:'投料比 1% 到 10%，检出限从 140 ppb 压到 4 ppb 以下：不凭肉眼，谱图坍塌就是铁证。'
+};
+const TAGS = {
+  1:'SCENE // 01 · MOLECULAR DYNAMICS',
+  2:'SCENE // 02 · THERMO-RESPONSIVE GATE',
+  3:'SCENE // 03 · PHOTOINDUCED ELECTRON TRANSFER',
+  4:'SCENE // 04 · SPECTRUM & LOD'
+};
+const CTL = {1:'RIR',2:'LCST',3:'PET',4:'SPEC'};
+
+function setModule(m){
+  state.module = m;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', +t.dataset.mod===m));
+  document.querySelectorAll('.ctl').forEach(c=>c.classList.toggle('on', +c.dataset.ctl===m));
+  $('#modCount').textContent = `0${m} / 04`;
+  $('#ctlCode').textContent = CTL[m];
+  $('#stageTag').textContent = TAGS[m];
+  $('#script').textContent = SCRIPTS[m];
+  $('#chartTitle').innerHTML = m===4 ? 'DOSE <b>RESPONSE</b>' : 'PL <b>EMISSION SPECTRUM</b>';
+  $('#chartTag').textContent = m===4 ? '浓度响应' : '实时';
+  updateMetrics();
+  log(`切换模块 0${m} · ${TAGS[m].split('· ')[1]}`, 'ok');
+}
+
+/* ================= 日志 ================= */
+let startT = Date.now();
+function log(msg, cls=''){
+  const el = $('#log');
+  const d = new Date();
+  const mm = String(Math.floor((Date.now()-startT)/60000)).padStart(2,'0');
+  const ss = String(Math.floor((Date.now()-startT)/1000)%60).padStart(2,'0');
+  const line = document.createElement('div');
+  line.innerHTML = `<span class="t">T+${mm}:${ss}</span><span class="${cls}">${msg}</span>`;
+  el.prepend(line);
+  while(el.children.length>8) el.lastChild.remove();
+  $('#clock').textContent = `T+${mm}:${ss}`;
+}
+
+/* ================= 交互 ================= */
+$('#tabs').addEventListener('click', e=>{
+  const b = e.target.closest('.tab'); if(!b) return;
+  setModule(+b.dataset.mod);
+});
+
+$('#sAgg').addEventListener('input', e=>{
+  state.agg = +e.target.value; $('#vAgg').textContent = state.agg+'%'; updateMetrics();
+  if(state.agg>55 && !window.__aggLogged){ window.__aggLogged = true; log('聚集态形成 · 旋转受限 · 荧光开启', 'ok'); }
+  if(state.agg<20) window.__aggLogged = false;
+});
+$('#sTemp').addEventListener('input', e=>{
+  state.temp = +e.target.value; $('#vTemp').textContent = state.temp.toFixed(1)+' ℃'; updateMetrics();
+  if(state.temp>=LCST && !window.__lcstLogged){ window.__lcstLogged=true; log('跨越 LCST · 链段塌缩 · 门控开启','warnl'); }
+  if(state.temp<LCST-0.5) window.__lcstLogged = false;
+});
+$('#sRatio').addEventListener('input', e=>{
+  state.ratio = +e.target.value; $('#vRatio').textContent = state.ratio.toFixed(1)+'%'; updateMetrics();
+});
+
+function toggleSample(){
+  if(state.sample){
+    state.sample = false; state.qTarget = 0;
+    $('#btnSample').textContent = '滴加爆炸物 / TNT';
+    $('#btnSample2').textContent = '滴加爆炸物';
+    log('清除样品 · 冲洗比色皿 · 基线恢复','');
+    updateMetrics(); return;
+  }
+  state.sample = true;
+  $('#btnSample').textContent = '清除样品';
+  $('#btnSample2').textContent = '清除样品';
+  if(!gateOpen()){
+    state.qTarget = 0;
+    log('样品已加入，但 T < 32 ℃：链段舒展，距离 6.8 nm，无响应','warnl');
+    if(state.module!==2) setModule(2);
+  } else {
+    state.qTarget = 1;
+    log('检出 TNT 蒸气 · PL 骤降 94.2 % · 判定：危险品阳性','alarm');
+  }
+  updateMetrics();
+}
+$('#btnSample').addEventListener('click', toggleSample);
+$('#btnSample2').addEventListener('click', toggleSample);
+
+$('#btnReset').addEventListener('click', reset);
+function reset(){
+  state.agg = 8; state.temp = 24; state.ratio = 3; state.q = 0; state.qTarget = 0;
+  state.sample = false; state.gateOverride = null;
+  $('#sAgg').value = 8; $('#vAgg').textContent = '8%';
+  $('#sTemp').value = 24; $('#vTemp').textContent = '24.0 ℃';
+  $('#sRatio').value = 3; $('#vRatio').textContent = '3.0%';
+  $('#btnSample').textContent = '滴加爆炸物 / TNT';
+  $('#btnSample2').textContent = '滴加爆炸物';
+  updateMetrics();
+  log('系统复位 · 全部参数恢复出厂设置','ok');
+}
+
+$('#btnPulse').addEventListener('click', ()=>{
+  t0 = performance.now();
+  log(gateOpen()? '脉冲激发 · 电子经 PET 通路转移至 TNT LUMO':'脉冲激发 · 辐射跃迁发射荧光','ok');
+});
+$('#btnGate').addEventListener('click', ()=>{
+  state.gateOverride = !gateOpen();
+  log(state.gateOverride? '手动置门控 OPEN（模拟升温至 34 ℃）':'手动置门控 CLOSE（模拟降温至 24 ℃）','warnl');
+  updateMetrics();
+});
+$('#fsBtn').addEventListener('click', ()=>{
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+  else document.exitFullscreen?.();
+});
+window.addEventListener('keydown', e=>{
+  if(e.key>='1' && e.key<='4'){ setModule(+e.key); }
+  else if(e.code==='Space'){ e.preventDefault(); toggleSample(); }
+  else if(e.key==='r'||e.key==='R'){ reset(); }
+  else if(e.key==='f'||e.key==='F'){ $('#fsBtn').click(); }
+  else if(e.key==='ArrowRight'){ setModule(Math.min(4,state.module+1)); }
+  else if(e.key==='ArrowLeft'){ setModule(Math.max(1,state.module-1)); }
+});
+
+/* ================= 启动 ================= */
+refit();
+updateMetrics();
+setModule(1);
+log('系统自检通过 · 4 个仿真模块加载完成','ok');
+log('离线模式 · 无外部依赖 · 可直接全屏演示','ok');
+requestAnimationFrame(frame);
+setInterval(updateMetrics, 400);
+</script>
+</body>
+</html>
