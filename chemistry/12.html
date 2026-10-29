@@ -6,10 +6,11 @@
 <title>AIE 聚合物荧光传感 · 全交互仿真沙盘</title>
 <style>
 :root{
-  --bg:#ffffff; --panel:#ffffff; --panel2:#f5f9fd; --line:#dce7f1;
-  --cyan:#0b6c86; --cyan-dim:#7aa9bb; --text:#0d2033; --dim:#3c5872;
-  --amber:#b45309; --red:#be123c; --green:#047857;
+  --bg:#ffffff; --panel:#ffffff; --panel2:#f3f8fc; --line:#dde8f1;
+  --blue:#0e4a73; --blue-2:#1565a0; --cyan:#0e7490; --cyan-dim:#7aa9bb;
+  --text:#0c2236; --dim:#3c5872; --amber:#b45309; --red:#be123c; --green:#047857;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --serif:"Songti SC","STSong","SimSun",serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -18,51 +19,62 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
   display:flex; flex-direction:column;
   background-image:
-    linear-gradient(rgba(14,116,144,.045) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(14,116,144,.045) 1px,transparent 1px);
-  background-size:44px 44px;
+    linear-gradient(rgba(14,74,115,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(14,74,115,.04) 1px,transparent 1px);
+  background-size:46px 46px;
 }
-/* ---------- header ---------- */
-.hud-top{display:flex;align-items:center;justify-content:space-between;gap:16px;
-  padding:10px 18px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.92);backdrop-filter:blur(6px)}
-.brand{display:flex;align-items:center;gap:12px;min-width:0}
-.emblem{width:40px;height:40px;flex:0 0 auto;border:1px solid var(--cyan);border-radius:8px;
-  display:grid;place-items:center;color:var(--cyan);font-family:var(--mono);font-size:13px;font-weight:800;
-  letter-spacing:.5px;background:#fff;box-shadow:0 0 0 3px rgba(14,116,144,.07)}
-.brand h1{font-size:18px;font-weight:800;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#0f2c46}
-.brand p{font-family:var(--mono);font-size:12px;font-weight:600;color:#3c5872;letter-spacing:1.1px;margin-top:3px}
-.top-right{display:flex;align-items:center;gap:8px;flex:0 0 auto}
-.chip{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.6px;padding:4px 9px;border-radius:4px;
-  border:1px solid var(--line);color:var(--dim);background:var(--panel2);white-space:nowrap}
-.chip.ok{color:var(--green);border-color:rgba(4,120,87,.28);background:rgba(4,120,87,.06)}
-.ghost-btn{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.6px;padding:5px 11px;border-radius:4px;cursor:pointer;
-  border:1px solid var(--line);background:#fff;color:var(--text);transition:.18s}
-.ghost-btn:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 2px 10px rgba(14,116,144,.12)}
+/* ---------- header (academic banner) ---------- */
+.hud-top{display:flex;align-items:center;justify-content:space-between;gap:20px;
+  padding:11px 22px;border-bottom:2px solid var(--blue);
+  background:linear-gradient(90deg,#f4f8fc 0%,#e9f1f9 100%)}
+.hd-left{display:flex;align-items:center;gap:14px;min-width:0}
+.badge{width:44px;height:44px;flex:0 0 auto;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--blue),var(--blue-2));
+  clip-path:polygon(0 0,86% 0,100% 100%,14% 100%);
+  color:#fff;font-family:var(--mono);font-weight:800;font-size:15px;letter-spacing:.5px;
+  box-shadow:0 3px 10px rgba(14,74,115,.35)}
+.hd-titles{min-width:0}
+.hd-title{font-family:var(--serif);font-size:21px;font-weight:700;color:#0e3a5f;letter-spacing:.4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hd-title .hl{color:var(--cyan);font-weight:700}
+.hd-sub{font-family:var(--mono);font-size:11px;color:#5b7790;letter-spacing:.6px;margin-top:2px;white-space:nowrap}
+.hd-right{display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex:0 0 auto}
+.course{font-size:13.5px;font-weight:700;color:#44647f;letter-spacing:.3px;text-align:right;max-width:360px}
+.status{display:flex;align-items:center;gap:8px}
+.chip{font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.5px;padding:4px 10px;border-radius:20px;
+  border:1px solid var(--line);color:var(--dim);background:#fff;white-space:nowrap}
+.chip.ok{color:var(--green);border-color:rgba(4,120,87,.35);background:rgba(4,120,87,.07)}
+.ghost-btn{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.5px;padding:5px 12px;border-radius:20px;cursor:pointer;
+  border:1px solid var(--line);background:#fff;color:var(--blue);transition:.18s}
+.ghost-btn:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
 /* ---------- layout ---------- */
-.grid{flex:1;min-height:0;display:grid;grid-template-columns:296px minmax(0,1fr) 372px;gap:12px;padding:12px}
-.col{min-height:0;display:flex;flex-direction:column;gap:12px}
-.card{background:#fff;border:1px solid var(--line);border-radius:8px;position:relative;overflow:hidden;
-  box-shadow:0 1px 3px rgba(15,40,70,.05)}
-.card::before,.card::after{content:"";position:absolute;width:9px;height:9px;border:1px solid rgba(14,116,144,.32);pointer-events:none}
-.card::before{top:-1px;left:-1px;border-right:0;border-bottom:0}
-.card::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
-.card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;
-  padding:9px 12px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;font-weight:700;
-  letter-spacing:1.3px;color:var(--dim);text-transform:uppercase;background:#fbfdff}
-.card-h b{color:var(--cyan);font-weight:800}
-/* ---------- tabs ---------- */
-.tabs{padding:8px;display:flex;flex-direction:column;gap:6px}
-.tab{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:6px;cursor:pointer;
-  border:1px solid transparent;transition:.18s;background:transparent;text-align:left;width:100%;color:inherit;font:inherit}
-.tab:hover{background:rgba(14,116,144,.05);border-color:rgba(14,116,144,.16)}
-.tab.on{background:rgba(14,116,144,.08);border-color:rgba(14,116,144,.38)}
-.tab .no{font-family:var(--mono);font-size:14px;font-weight:800;color:#4d6f8c;padding-top:1px}
-.tab.on .no{color:var(--cyan)}
-.tab .tt{display:block;font-size:15px;font-weight:800;letter-spacing:.4px;color:#0b2740}
-.tab.on .tt{color:#08475a}
-.tab .sub{display:block;font-family:var(--mono);font-size:12.5px;font-weight:600;color:#44647f;margin-top:3px;letter-spacing:.5px}
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr) 376px;gap:14px;padding:14px}
+.col{min-height:0;display:flex;flex-direction:column;gap:14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden;
+  box-shadow:0 2px 12px rgba(14,50,80,.06)}
+.card-h{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line);
+  background:linear-gradient(90deg,#f3f9fd,#ffffff);font-family:var(--mono);font-size:11.5px;font-weight:800;
+  letter-spacing:1.2px;color:#5b7790;text-transform:uppercase}
+.card-h::before{content:"";width:4px;height:14px;border-radius:2px;background:var(--blue)}
+.card-h b{color:var(--blue);font-weight:800}
+/* ---------- tabs (module cards w/ icons) ---------- */
+.tabs{padding:11px;display:flex;flex-direction:column;gap:9px}
+.tab{display:flex;gap:12px;align-items:center;padding:9px 12px;border-radius:11px;cursor:pointer;
+  border:1px solid var(--line);background:#fff;transition:.18s;text-align:left;width:100%;color:inherit;font:inherit}
+.tab:hover{border-color:rgba(14,116,144,.4);box-shadow:0 2px 12px rgba(14,74,115,.1)}
+.tab.on{background:linear-gradient(135deg,#eaf3fb,#f6fbfe);border-color:var(--blue);box-shadow:0 3px 14px rgba(14,74,115,.14)}
+.ico{width:38px;height:38px;flex:0 0 auto;border-radius:50%;background:var(--panel2);border:1px solid var(--line);
+  display:grid;place-items:center;color:var(--blue);transition:.18s}
+.tab.on .ico{background:var(--blue);color:#fff;border-color:var(--blue)}
+.ico svg{width:22px;height:22px;display:block}
+.meta{min-width:0}
+.tab .no{font-size:13px;font-weight:800;color:var(--cyan);margin-right:5px}
+.tab.on .no{color:var(--blue)}
+.tab .tt{font-size:15px;font-weight:800;color:#0b2740;letter-spacing:.3px}
+.tab.on .tt{color:#0e3a5f}
+.tab .sub{display:block;font-family:var(--mono);font-size:11.5px;font-weight:600;color:#44647f;margin-top:2px;letter-spacing:.4px}
 /* ---------- controls ---------- */
-.ctl-wrap{padding:12px}
+.ctl-wrap{padding:13px}
 .ctl{display:none}
 .ctl.on{display:block}
 .row{margin-bottom:14px}
@@ -70,13 +82,13 @@ body{
 .row-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
 .row-top label{font-size:13.5px;font-weight:700;color:#28455e;letter-spacing:.3px}
 .row-top .val{font-family:var(--mono);font-size:17px;color:var(--cyan);font-weight:800}
-input[type=range]{-webkit-appearance:none;width:100%;height:3px;border-radius:2px;background:#e2ecf5;outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
-  background:#fff;border:2px solid var(--cyan);cursor:pointer;box-shadow:0 1px 5px rgba(14,116,144,.35)}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:3px;background:#e2ecf5;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:#fff;border:3px solid var(--blue);cursor:pointer;box-shadow:0 1px 6px rgba(14,74,115,.4)}
 .scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px;font-weight:700;color:#4d6f8c;margin-top:6px}
-.btn{width:100%;padding:11px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:800;letter-spacing:1px;
-  border:1px solid rgba(14,116,144,.35);background:rgba(14,116,144,.08);color:#0b5b70;transition:.18s;font-family:inherit}
-.btn:hover{background:rgba(14,116,144,.15);box-shadow:0 3px 12px rgba(14,116,144,.14)}
+.btn{width:100%;padding:11px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:800;letter-spacing:.5px;
+  border:1px solid rgba(14,74,115,.3);background:rgba(14,74,115,.07);color:#0e4a73;transition:.18s;font-family:inherit}
+.btn:hover{background:rgba(14,74,115,.14);box-shadow:0 3px 12px rgba(14,74,115,.14)}
 .btn.warn{border-color:rgba(190,18,60,.32);background:rgba(190,18,60,.06);color:#a5123a}
 .btn.warn:hover{background:rgba(190,18,60,.12);box-shadow:0 3px 12px rgba(190,18,60,.14)}
 .btn.ghost{border-color:var(--line);background:#fff;color:#3c5872;font-weight:700}
@@ -84,51 +96,51 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .btn+.btn{margin-top:8px}
 .note{font-size:13px;font-weight:600;line-height:1.7;color:#3f607c;margin-top:10px;font-family:var(--mono)}
 /* readouts */
-.readout{padding:4px 12px 12px}
-.ro{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px dashed #e8f0f7;font-size:13px;font-weight:600}
+.readout{padding:3px 14px 10px;flex:1;min-height:0;overflow-y:auto}
+.ro{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px dashed #e8f0f7;font-size:13px;font-weight:600}
 .ro:last-child{border-bottom:0}
 .ro span:first-child{color:#3c5872;font-weight:600}
 .ro b{font-family:var(--mono);font-size:15px;color:#0b2740;font-weight:800}
 .ro b.cy{color:var(--cyan)} .ro b.am{color:var(--amber)} .ro b.rd{color:var(--red)} .ro b.gr{color:var(--green)}
 /* ---------- stage ---------- */
-.stage{position:relative;background:radial-gradient(circle at 50% 45%,#ffffff 0%,#f4f9fd 62%,#eaf3fa 100%);
-  border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(15,40,70,.05)}
+.stage{position:relative;background:radial-gradient(circle at 50% 45%,#ffffff 0%,#f4f9fd 62%,#e9f2fa 100%);
+  border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(14,50,80,.06)}
 #scene{position:absolute;inset:0;width:100%;height:100%;display:block}
-.stage-badge{position:absolute;top:12px;right:12px;z-index:3;font-family:var(--mono);font-size:13px;font-weight:800;
-  letter-spacing:1px;padding:5px 11px;border-radius:4px;border:1px solid rgba(14,116,144,.35);
-  background:rgba(255,255,255,.88);color:var(--cyan);backdrop-filter:blur(4px)}
-.stage-badge.red{border-color:rgba(190,18,60,.4);color:#be123c;background:rgba(255,244,246,.92);box-shadow:0 2px 12px rgba(190,18,60,.10)}
+.stage-badge{position:absolute;top:14px;right:14px;z-index:3;font-family:var(--mono);font-size:13px;font-weight:800;
+  letter-spacing:1px;padding:6px 13px;border-radius:20px;border:1px solid rgba(14,74,115,.35);
+  background:rgba(255,255,255,.9);color:var(--blue);backdrop-filter:blur(4px)}
+.stage-badge.red{border-color:rgba(190,18,60,.4);color:#be123c;background:rgba(255,244,246,.92);box-shadow:0 2px 12px rgba(190,18,60,.1)}
 .stage-badge.amber{border-color:rgba(180,83,9,.35);color:var(--amber);background:rgba(255,251,235,.92)}
-.stage-tag{position:absolute;top:12px;left:12px;z-index:3;font-family:var(--mono);font-size:12px;font-weight:700;color:#4d6f8c;
-  letter-spacing:1.4px;color:#9db2c4}
+.stage-tag{position:absolute;top:14px;left:14px;z-index:3;font-family:var(--mono);font-size:12px;font-weight:700;color:#44647f;
+  letter-spacing:1.4px}
 .stage-foot{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:center;gap:10px;
-  padding:10px 12px;background:linear-gradient(0deg,rgba(255,255,255,.97),rgba(255,255,255,.62) 70%,transparent)}
-.stage-foot .btn{width:auto;flex:0 0 auto;padding:9px 18px}
-.hint{font-family:var(--mono);font-size:12.5px;font-weight:600;color:#44647f;letter-spacing:.8px;margin-left:auto;text-align:right;line-height:1.6}
+  padding:12px 14px;background:linear-gradient(0deg,rgba(255,255,255,.97),rgba(255,255,255,.6) 70%,transparent)}
+.stage-foot .btn{width:auto;flex:0 0 auto;padding:9px 18px;border-radius:8px}
+.hint{font-family:var(--mono);font-size:12.5px;font-weight:600;color:#44647f;letter-spacing:.5px;margin-left:auto;text-align:right;line-height:1.6}
 /* ---------- right ---------- */
 .chart-box{position:relative;height:208px;padding:6px 8px 2px}
 #specChart{width:100%;height:100%;display:block}
 .metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
-.metric{background:#fff;padding:9px 11px}
-.metric .k{font-family:var(--mono);font-size:11.5px;font-weight:800;letter-spacing:.9px;color:#3c5872;text-transform:uppercase}
+.metric{background:#fff;padding:10px 12px}
+.metric .k{font-family:var(--mono);font-size:11.5px;font-weight:800;letter-spacing:.6px;color:#3c5872;text-transform:uppercase}
 .metric .v{font-family:var(--mono);font-size:22px;font-weight:800;color:#0b2740;margin-top:3px}
 .metric .v small{font-size:12px;color:#3c5872;font-weight:700;margin-left:2px}
 .metric.hot .v{color:var(--cyan)} .metric.alarm .v{color:var(--red)} .metric.warnv .v{color:var(--amber)}
-.log{padding:8px 11px;font-family:var(--mono);font-size:12.5px;font-weight:600;line-height:1.9;color:#2e4a64;
+.log{padding:9px 12px;font-family:var(--mono);font-size:12.5px;font-weight:600;line-height:1.9;color:#2e4a64;
   flex:1;min-height:0;overflow:hidden}
 .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .log .t{color:#5a7c99;font-weight:700;margin-right:6px}
 .log .ok{color:var(--green)} .log .warnl{color:var(--amber)} .log .alarm{color:#be123c}
 /* ---------- footer ---------- */
-.foot{display:flex;align-items:center;gap:14px;padding:12px 18px;border-top:1px solid var(--line);
-  background:rgba(255,255,255,.95);font-size:15px;font-weight:700}
-.foot .lbl{font-family:var(--mono);font-size:11.5px;font-weight:800;letter-spacing:1.2px;color:var(--cyan);
-  border:1px solid rgba(14,116,144,.3);padding:3px 7px;border-radius:3px;flex:0 0 auto;background:rgba(14,116,144,.05)}
+.foot{display:flex;align-items:center;gap:14px;padding:12px 22px;border-top:1px solid var(--line);
+  background:#ffffff;font-size:15px;font-weight:700}
+.foot .lbl{font-family:var(--mono);font-size:11.5px;font-weight:800;letter-spacing:1px;color:#fff;
+  background:var(--blue);padding:5px 10px;border-radius:6px;flex:0 0 auto}
 .foot .txt{color:#2e4a64;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.foot .keys{font-family:var(--mono);font-size:11.5px;font-weight:700;color:#44647f;letter-spacing:.8px;flex:0 0 auto}
+.foot .keys{font-family:var(--mono);font-size:11.5px;font-weight:700;color:#44647f;letter-spacing:.5px;flex:0 0 auto}
 @media (max-width:1180px){
-  .grid{grid-template-columns:250px minmax(0,1fr) 320px}
-  .brand p{display:none}
+  .grid{grid-template-columns:256px minmax(0,1fr) 324px}
+  .course{display:none}
 }
 @media (max-width:920px){
   body{overflow:auto}
@@ -141,17 +153,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 <body>
 
 <header class="hud-top">
-  <div class="brand">
-    <div class="emblem">AIE</div>
-    <div style="min-width:0">
-      <h1>聚集诱导发光聚合物 · 爆炸物荧光传感仿真沙盘</h1>
-      <p>AGGREGATION-INDUCED EMISSION / TACTICAL INTERACTIVE COURSEWARE · 讲课比赛决赛课件</p>
+  <div class="hd-left">
+    <div class="badge">AI</div>
+    <div class="hd-titles">
+      <h1 class="hd-title">AI 辅助教学：让微观过程<span class="hl">“看得见”</span></h1>
+      <div class="hd-sub">AGGREGATION-INDUCED EMISSION · 全交互仿真沙盘 · 讲课比赛决赛课件</div>
     </div>
   </div>
-  <div class="top-right">
-    <span class="chip ok">● 离线运行</span>
-    <span class="chip">零外部依赖</span>
-    <button class="ghost-btn" id="fsBtn">全屏 F</button>
+  <div class="hd-right">
+    <div class="course">聚集诱导发光聚合物的合成与性能</div>
+    <div class="status">
+      <span class="chip ok">● 离线运行</span>
+      <button class="ghost-btn" id="fsBtn">全屏 F</button>
+    </div>
   </div>
 </header>
 
@@ -163,20 +177,20 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <div class="card-h"><span>MODULE <b>SELECT</b></span><span id="modCount">01 / 04</span></div>
       <div class="tabs" id="tabs">
         <button class="tab on" data-mod="1">
-          <span class="no">01</span>
-          <span><span class="tt">分子内旋转受限 RIR</span><span class="sub">TPE · 聚集 → 发光</span></span>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(120 12 12)"/></svg></span>
+          <span class="meta"><span class="no">①</span><span class="tt">分子内旋转受限 RIR</span><span class="sub">TPE · 聚集 → 发光</span></span>
         </button>
         <button class="tab" data-mod="2">
-          <span class="no">02</span>
-          <span><span class="tt">温敏门控 LCST</span><span class="sub">NIPAm 链塌缩 · 距离拉近</span></span>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 4a2.5 2.5 0 0 1 2.5 2.5v7.5a4.5 4.5 0 1 1-5 0V6.5A2.5 2.5 0 0 1 12 4Z"/><line x1="12" y1="9" x2="12" y2="15"/></svg></span>
+          <span class="meta"><span class="no">②</span><span class="tt">温敏门控 LCST</span><span class="sub">NIPAm 链塌缩 · 距离拉近</span></span>
         </button>
         <button class="tab" data-mod="3">
-          <span class="no">03</span>
-          <span><span class="tt">光诱导电子转移 PET</span><span class="sub">能级 · 电子改道</span></span>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><line x1="3.5" y1="8.5" x2="12.5" y2="8.5"/><line x1="11.5" y1="15.5" x2="20.5" y2="15.5"/><path d="M11 9.5 14 15"/><circle cx="14" cy="15" r="1.5" fill="currentColor" stroke="none"/></svg></span>
+          <span class="meta"><span class="no">③</span><span class="tt">光诱导电子转移 PET</span><span class="sub">能级 · 电子改道</span></span>
         </button>
         <button class="tab" data-mod="4">
-          <span class="no">04</span>
-          <span><span class="tt">投料比 · 光谱与检出限</span><span class="sub">DDBV 1%–10% · ppb 级</span></span>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 17.5Q8.5 17.5 12 9Q15.5 2 21 17.5"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span>
+          <span class="meta"><span class="no">④</span><span class="tt">投料比 · 光谱与检出限</span><span class="sub">DDBV 1%–10% · ppb 级</span></span>
         </button>
       </div>
     </section>
@@ -815,7 +829,8 @@ function drawResponse(ctx,w,h){
   ctx.fillStyle='rgba(140,62,5,1)';
   ctx.fillText(lodTxt, bx, by);
   ctx.fillStyle='rgba(38,60,82,.96)';
-  ctx.fillText('CONC / ppb (log)', x1-92, h-4);
+  ctx.textAlign='right';
+  ctx.fillText('CONC / ppb (log)', x1-2, h-4);
 }
 
 /* ================= 渲染主循环 ================= */
